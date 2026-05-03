@@ -9,11 +9,13 @@ from .documents import router as documents_router
 from .qa import router as qa_router
 from .users import router as users_router
 from .message import router as message_router
+from .chat import router as chat_router
 
 router = APIRouter()
 # Endpoints protegidos por JWT Bearer.
 router.include_router(documents_router, dependencies=[Depends(get_current_user)])
 router.include_router(qa_router, dependencies=[Depends(get_current_user)])
+router.include_router(chat_router, dependencies=[Depends(get_current_user)])
 router.include_router(message_router, dependencies=[Depends(get_current_user)])
 
 # Endpoints publicos.

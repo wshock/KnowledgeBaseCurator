@@ -1,4 +1,5 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker, declarative_base
 
 
@@ -9,6 +10,23 @@ engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
+
+
+def init_db():
+    """Create tables and ensure schema compatibility for existing databases."""
+    Base.metadata.create_all(bind=engine)
+    with engine.begin() as conn:
+        conn.execute(text(
+            "ALTER TABLE messages ADD COLUMN IF NOT EXISTS chat_id INTEGER"
+        ))
+        try:
+            conn.execute(text(
+                "ALTER TABLE messages ADD CONSTRAINT messages_chat_id_fkey "
+                "FOREIGN KEY (chat_id) REFERENCES chats(id) ON DELETE CASCADE"
+            ))
+        except SQLAlchemyError:
+            # Ignore if the constraint already exists or cannot be created.
+            pass
 
 
 def get_db():
