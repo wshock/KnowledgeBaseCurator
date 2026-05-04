@@ -5,14 +5,13 @@ import { useDashboardStore } from "@/src/store/dashboard.store";
 import { ChatInput } from "@/src/components/dashboard/chat/ChatInput";
 import { sendMessageToAgent } from "@/src/services/agent.service";
 import { useEffect, useRef } from "react";
+import { RiGraduationCapLine, RiSparklingLine } from "react-icons/ri";
 
 export default function ChatPage() {
   const params = useParams();
   const id = params.id as string;
 
-  const chat = useDashboardStore((state) =>
-    state.chats.find((c) => c.id === id)
-  );
+  const chat = useDashboardStore((state) => state.chats.find((c) => c.id === id));
   const updateChat = useDashboardStore((state) => state.updateChat);
   const addAgentMessage = useDashboardStore((state) => state.addAgentMessage);
   const setAgentTyping = useDashboardStore((state) => state.setAgentTyping);
@@ -27,7 +26,6 @@ export default function ChatPage() {
   const handleSendMessage = async (message: string) => {
     if (!message.trim() || !chat || isAgentTyping) return;
 
-    // 1. Agrega el mensaje del usuario al store
     const userMessage = {
       id: Date.now().toString(),
       role: "user" as const,
@@ -40,56 +38,55 @@ export default function ChatPage() {
       updatedAt: new Date(),
     });
 
-    // 2. Muestra indicador "escribiendo..."
     setAgentTyping(true);
 
     try {
-      // 3. Llama al agente (simulado o real según agentService)
-      const history = chat.messages.map((m) => ({
-        role: m.role,
-        content: m.content,
-      }));
-
-      const response = await sendMessageToAgent({
-        message,
-        chatId: id,
-        history,
-      });
-
-      // 4. Agrega la respuesta al store
+      const history = chat.messages.map((m) => ({ role: m.role, content: m.content }));
+      const response = await sendMessageToAgent({ message, chatId: id, history });
       addAgentMessage(id, response.content);
-    } catch (error) {
-      console.error("Error al contactar al agente:", error);
-      addAgentMessage(
-        id,
-        "Lo siento, hubo un error al procesar tu mensaje. Intenta de nuevo."
-      );
+    } catch {
+      addAgentMessage(id, "Lo siento, hubo un error al procesar tu mensaje. Intenta de nuevo.");
     }
   };
 
   if (!chat) {
-    return <div className="p-4">Chat no encontrado</div>;
+    return (
+      <div className="h-screen flex items-center justify-center bg-[#f0f5ff]">
+        <p className="text-gray-400 text-sm">Chat no encontrado</p>
+      </div>
+    );
   }
 
   return (
-    <div className="flex flex-col h-screen">
-      {/* Área de mensajes */}
-      <div className="flex-1 overflow-y-auto p-6">
-        <h1 className="text-xl font-bold mb-6 text-gray-800">{chat.title}</h1>
+    <div className="flex flex-col h-screen bg-[#f0f5ff]">
 
-        <div className="space-y-4 max-w-3xl mx-auto">
+      {/* Header del chat */}
+      <div className="bg-white border-b border-gray-100 px-8 py-4 shadow-sm shrink-0">
+        <div className="max-w-3xl mx-auto flex items-center gap-2">
+          <h1 className="text-sm font-semibold text-[#1a2b4a] truncate">{chat.title}</h1>
+        </div>
+      </div>
+
+      {/* Mensajes */}
+      <div className="flex-1 overflow-y-auto px-6 py-6">
+        <div className="space-y-5 max-w-3xl mx-auto">
           {chat.messages.map((msg) => (
             <div
               key={msg.id}
-              className={`flex ${
-                msg.role === "user" ? "justify-end" : "justify-start"
-              }`}
+              className={`flex items-end gap-3 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}
             >
+              {/* Avatar */}
+              {msg.role === "assistant" && (
+                <div className="w-7 h-7 rounded-full bg-blue-950 flex items-center justify-center shrink-0 mb-0.5">
+                  <RiGraduationCapLine className="h-3.5 w-3.5 text-white" />
+                </div>
+              )}
+
               <div
-                className={`max-w-[70%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                className={`max-w-[72%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                   msg.role === "user"
-                    ? "bg-blue-950 text-white"
-                    : "bg-white border border-gray-200 text-gray-800 shadow-sm"
+                    ? "bg-[#1a2b4a] text-white rounded-br-sm shadow-md"
+                    : "bg-white border border-gray-100 text-gray-800 rounded-bl-sm shadow-sm"
                 }`}
               >
                 <p className="whitespace-pre-wrap">{msg.content}</p>
@@ -97,14 +94,17 @@ export default function ChatPage() {
             </div>
           ))}
 
-          {/* Indicador "escribiendo..." del agente */}
+          {/* Indicador escribiendo */}
           {isAgentTyping && (
-            <div className="flex justify-start">
-              <div className="bg-white border border-gray-200 rounded-2xl px-4 py-3 shadow-sm">
-                <div className="flex items-center gap-1">
-                  <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                  <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]" />
-                  <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
+            <div className="flex items-end gap-3">
+              <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center shrink-0">
+                <RiSparklingLine className="h-3.5 w-3.5 text-white" />
+              </div>
+              <div className="bg-white border border-gray-100 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                  <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                  <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" />
                 </div>
               </div>
             </div>
@@ -115,16 +115,18 @@ export default function ChatPage() {
       </div>
 
       {/* Input */}
-      <div className="p-4 mb-2">
-        <ChatInput
-          onSend={handleSendMessage}
-          disabled={isAgentTyping}
-          placeholder={
-            isAgentTyping
-              ? "El agente está respondiendo..."
-              : "Pregunta a SchoolAI sobre plan de estudio..."
-          }
-        />
+      <div className="bg-[#f0f5ff] border-t border-gray-100 px-6 py-4">
+        <div className="max-w-3xl mx-auto">
+          <ChatInput
+            onSend={handleSendMessage}
+            disabled={isAgentTyping}
+            placeholder={
+              isAgentTyping
+                ? "SchoolAI está respondiendo..."
+                : "Pregunta a SchoolAI sobre plan de estudio..."
+            }
+          />
+        </div>
       </div>
     </div>
   );
