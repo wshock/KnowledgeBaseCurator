@@ -36,7 +36,12 @@ def retrieve(state: RAGState) -> dict:
     # Se reutiliza la configuracion de retrieval centralizada en settings.
     vectorstore = get_vectorstore()
     retriever = vectorstore.as_retriever(
-        search_kwargs={"k": settings.RETRIEVER_K}
+        search_type="mmr",
+        search_kwargs={
+            "k": settings.RETRIEVER_K,
+            "fetch_k": settings.RETRIEVER_FETCH_K,
+            "lambda_mult": settings.RETRIEVER_MMR_LAMBDA,
+        },
     )
     # Cada documento recuperado aporta un fragmento de contexto textual.
     docs = retriever.invoke(state["question"])

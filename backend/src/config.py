@@ -18,17 +18,19 @@ class Settings(BaseSettings):
     # ChromaDB
     CHROMA_HOST: str = "chromadb"
     CHROMA_PORT: int = 8000
-    COLLECTION_NAME: str = "documents"
+    COLLECTION_NAME: str = "documents_v2"
 
     # Embeddings
-    EMBEDDING_MODEL: str = "all-MiniLM-L6-v2"
+    EMBEDDING_MODEL: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 
     # Chunking
-    CHUNK_SIZE: int = 1000
-    CHUNK_OVERLAP: int = 200
+    CHUNK_SIZE: int = 800
+    CHUNK_OVERLAP: int = 120
 
     # Retrieval
-    RETRIEVER_K: int = 4
+    RETRIEVER_K: int = 6
+    RETRIEVER_FETCH_K: int = 20
+    RETRIEVER_MMR_LAMBDA: float = 0.5
 
     # JWT
     JWT_SECRET_KEY: str

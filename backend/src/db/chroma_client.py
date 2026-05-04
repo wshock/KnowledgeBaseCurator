@@ -18,7 +18,10 @@ def get_embeddings() -> HuggingFaceEmbeddings:
 
     global _embeddings
     if _embeddings is None:
-        _embeddings = HuggingFaceEmbeddings(model_name=settings.EMBEDDING_MODEL)
+        _embeddings = HuggingFaceEmbeddings(
+            model_name=settings.EMBEDDING_MODEL,
+            encode_kwargs={"normalize_embeddings": True},
+        )
     return _embeddings
 
 
@@ -38,4 +41,5 @@ def get_vectorstore() -> Chroma:
         client=http_client,
         collection_name=settings.COLLECTION_NAME,
         embedding_function=get_embeddings(),
+        collection_metadata={"hnsw:space": "cosine"},
     )
