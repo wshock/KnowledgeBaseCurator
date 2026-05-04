@@ -4,7 +4,6 @@ import { useState } from "react";
 import { RiGraduationCapLine } from "react-icons/ri";
 import { FiClock, FiFile, FiSettings, FiHelpCircle, FiLogOut, FiMessageSquare } from "react-icons/fi";
 import { AiOutlineFolderAdd } from "react-icons/ai";
-import { HiOutlineDocumentDuplicate } from "react-icons/hi2";
 import { IoAddOutline } from "react-icons/io5";
 import Link from "next/link";
 import { useDashboardStore } from "@/src/store/dashboard.store";
@@ -22,14 +21,13 @@ export default function Sidebar() {
   const filteredChats = chats.filter((chat) => chat.messages.length > 0);
 
   const navigation = [
-    { name: "Historial", path: "/historial", icon: FiClock },
-    { name: "Subir archivo", path: "/subir-archivo", icon: AiOutlineFolderAdd },
-    { name: "Archivos", path: "/archivos", icon: HiOutlineDocumentDuplicate },
-  ];
+    { name: "Historial", path: "/dashboard/historial", icon: FiClock },
+    { name: "Subir archivo", path: "/dashboard/subir-archivo", icon: AiOutlineFolderAdd },
+    ];
 
   const navigationBottom = [
-    { name: "Configuración", path: "/configuracion", icon: FiSettings },
-    { name: "Centro de ayuda", path: "/ayuda", icon: FiHelpCircle },
+    { name: "Configuración", path: "/dashboard/configuracion", icon: FiSettings },
+    { name: "Centro de ayuda", path: "/dashboard/ayuda", icon: FiHelpCircle },
   ];
 
   const handleLogoutConfirm = () => {
@@ -139,7 +137,7 @@ export default function Sidebar() {
 
           <button
             onClick={() => setShowLogoutModal(true)}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-800 transition-colors"
+            className="w-full bg-blue-950 text-white hover:bg-blue-800 flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
           >
             <FiLogOut className="h-4 w-4 shrink-0" />
             <span>Cerrar sesión</span>
