@@ -4,14 +4,14 @@ API para responder preguntas sobre documentos PDF usando Retrieval-Augmented Gen
 
 ## Stack
 
-| Capa | Tecnología |
-|---|---|
-| API | FastAPI |
-| Orquestación RAG | LangGraph |
-| Vector DB | ChromaDB (contenedor) |
-| LLM | Groq (`llama-3.1-8b-instant`) |
-| Embeddings | `all-MiniLM-L6-v2` (local, gratis) |
-| Contenedores | Docker + Docker Compose |
+| Capa             | Tecnología                         |
+| ---------------- | ---------------------------------- |
+| API              | FastAPI                            |
+| Orquestación RAG | LangGraph                          |
+| Vector DB        | ChromaDB (contenedor)              |
+| LLM              | Groq (`llama-3.1-8b-instant`)      |
+| Embeddings       | `all-MiniLM-L6-v2` (local, gratis) |
+| Contenedores     | Docker + Docker Compose            |
 
 ## Estructura del proyecto
 
@@ -76,6 +76,7 @@ docker compose up --build
 ```
 
 > La primera vez tarda varios minutos porque:
+>
 > - Instala todas las dependencias de Python
 > - Descarga el modelo de embeddings (~90 MB) dentro de la imagen
 >
@@ -89,6 +90,7 @@ curl http://localhost:8000/health
 ```
 
 También puedes abrir la documentación interactiva en:
+
 - **Swagger UI:** http://localhost:8000/docs
 - **ReDoc:** http://localhost:8000/redoc
 
@@ -104,6 +106,7 @@ curl -X POST http://localhost:8000/api/v1/upload \
 ```
 
 Respuesta:
+
 ```json
 {
   "filename": "mi_documento.pdf",
@@ -121,6 +124,7 @@ curl -X POST http://localhost:8000/api/v1/login \
 ```
 
 Respuesta:
+
 ```json
 {
   "access_token": "<jwt>",
@@ -146,6 +150,7 @@ curl -X POST http://localhost:8000/api/v1/ask \
 ```
 
 Respuesta:
+
 ```json
 {
   "question": "¿De qué trata el documento?",
@@ -157,14 +162,14 @@ Respuesta:
 
 ## Comandos útiles
 
-| Comando | Descripción |
-|---|---|
-| `docker compose up --build` | Primera vez o tras cambiar requirements.txt |
-| `docker compose up` | Levantar servicios (sin rebuild) |
-| `docker compose down` | Detener y eliminar contenedores |
-| `docker compose down -v` | Detener y **borrar** también los datos de ChromaDB |
-| `docker compose logs -f backend` | Ver logs del backend en tiempo real |
-| `docker compose logs -f chromadb` | Ver logs de ChromaDB |
+| Comando                           | Descripción                                        |
+| --------------------------------- | -------------------------------------------------- |
+| `docker compose up --build`       | Primera vez o tras cambiar requirements.txt        |
+| `docker compose up`               | Levantar servicios (sin rebuild)                   |
+| `docker compose down`             | Detener y eliminar contenedores                    |
+| `docker compose down -v`          | Detener y **borrar** también los datos de ChromaDB |
+| `docker compose logs -f backend`  | Ver logs del backend en tiempo real                |
+| `docker compose logs -f chromadb` | Ver logs de ChromaDB                               |
 
 > 💡 El código del backend tiene **hot-reload** activado. Al guardar un archivo `.py`, FastAPI se reinicia automáticamente sin necesidad de reconstruir la imagen.
 
@@ -207,17 +212,41 @@ Usuario hace pregunta
 
 Todas tienen valores por defecto excepto `GROQ_API_KEY`.
 
-| Variable | Por defecto | Descripción |
-|---|---|---|
-| `GROQ_API_KEY` | — | **Requerida.** API key de Groq |
-| `JWT_SECRET_KEY` | — | **Requerida.** Clave secreta para firmar/verificar JWT |
-| `JWT_ALGORITHM` | `HS256` | Algoritmo de firma JWT |
-| `JWT_ACCESS_TOKEN_EXPIRE_MINUTES` | `60` | Minutos de vida del access token |
-| `GROQ_MODEL` | `llama-3.1-8b-instant` | Modelo de Groq a usar |
-| `CHROMA_HOST` | `chromadb` | Host del servicio ChromaDB |
-| `CHROMA_PORT` | `8000` | Puerto del servicio ChromaDB |
-| `COLLECTION_NAME` | `documents` | Nombre de la colección en ChromaDB |
-| `EMBEDDING_MODEL` | `all-MiniLM-L6-v2` | Modelo de embeddings |
-| `CHUNK_SIZE` | `1000` | Tamaño de cada chunk en caracteres |
-| `CHUNK_OVERLAP` | `200` | Overlap entre chunks |
-| `RETRIEVER_K` | `4` | Número de chunks a recuperar por query |
+| Variable                          | Por defecto            | Descripción                                            |
+| --------------------------------- | ---------------------- | ------------------------------------------------------ |
+| `GROQ_API_KEY`                    | —                      | **Requerida.** API key de Groq                         |
+| `JWT_SECRET_KEY`                  | —                      | **Requerida.** Clave secreta para firmar/verificar JWT |
+| `JWT_ALGORITHM`                   | `HS256`                | Algoritmo de firma JWT                                 |
+| `JWT_ACCESS_TOKEN_EXPIRE_MINUTES` | `60`                   | Minutos de vida del access token                       |
+| `GROQ_MODEL`                      | `llama-3.1-8b-instant` | Modelo de Groq a usar                                  |
+| `CHROMA_HOST`                     | `chromadb`             | Host del servicio ChromaDB                             |
+| `CHROMA_PORT`                     | `8000`                 | Puerto del servicio ChromaDB                           |
+| `COLLECTION_NAME`                 | `documents`            | Nombre de la colección en ChromaDB                     |
+| `EMBEDDING_MODEL`                 | `all-MiniLM-L6-v2`     | Modelo de embeddings                                   |
+| `CHUNK_SIZE`                      | `1000`                 | Tamaño de cada chunk en caracteres                     |
+| `CHUNK_OVERLAP`                   | `200`                  | Overlap entre chunks                                   |
+| `RETRIEVER_K`                     | `4`                    | Número de chunks a recuperar por query                 |
+
+## para entrar a la base de datos
+
+docker ps
+
+docker exec -it backend-db-1 bash
+
+psql -U user -d postgres
+
+Ver tablas:
+
+\dt
+
+Ver bases de datos:
+
+\l
+
+Ver usuarios:
+
+\du
+
+Y por ejemplo ver datos de una tabla:
+
+SELECT \* FROM users;
