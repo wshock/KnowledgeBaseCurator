@@ -33,3 +33,10 @@ class MessageResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+class MessagePairResponse(BaseModel):
+    user_message: MessageResponse
+    assistant_message: MessageResponse
+    
+    class Config:
+        from_attributes = True

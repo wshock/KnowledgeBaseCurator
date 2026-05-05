@@ -1,14 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException
 from typing import List
-from db.sql.schemas import MessageCreate, MessageResponse
+from db.sql.schemas import MessageCreate, MessageResponse, MessagePairResponse
 from db.sql.models import Message, Chat
 from utils.security import get_current_user
 from db.sql.database import get_db
 from sqlalchemy.orm import Session
+from rag.graph import rag_chain
+
 
 router = APIRouter(tags=["messages"], prefix="/chats/{chat_id}/messages")
 
-@router.post("/", response_model=MessageResponse)
+@router.post("/", response_model=MessagePairResponse)
 async def create_message(
     chat_id: int,
     message: MessageCreate,
@@ -26,16 +28,38 @@ async def create_message(
     if not chat:
         raise HTTPException(status_code=404, detail="Chat not found")
     
-    new_message = Message(
+    user_message = Message(
         chat_id=chat_id,
         user_id=current_user.id,
         content=message.content,
-        sender=message.sender
+        sender="user"
     )
-    db.add(new_message)
+    db.add(user_message)
     db.commit()
-    db.refresh(new_message)
-    return new_message
+    db.refresh(user_message)
+    
+    try:
+        result = rag_chain.invoke({
+            "question": message.content,
+            "context": [],
+            "answer": "",
+        })
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Error interno al procesar la pregunta.")
+    
+    assistant_message = Message(
+        chat_id=chat_id,
+        user_id=current_user.id,
+        content=result["answer"],
+        sender="assistant"
+    )
+    db.add(assistant_message)
+    db.commit()
+    db.refresh(assistant_message)
+    return {                                    
+        "user_message": user_message,
+        "assistant_message": assistant_message
+    }
 
 @router.get("/", response_model=List[MessageResponse])
 async def get_chat_messages(
