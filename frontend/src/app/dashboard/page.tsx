@@ -67,7 +67,7 @@ export default function Dashboard() {
         </div>
 
         {/* Sugerencias */}
-        <div className="flex flex-wrap gap-2 justify-center max-w-2xl">
+        {/*<div className="flex flex-wrap gap-2 justify-center max-w-2xl">
           {SUGGESTIONS.map((s) => (
             <button
               key={s}
@@ -77,7 +77,7 @@ export default function Dashboard() {
               {s}
             </button>
           ))}
-        </div>
+        </div>*/}
       </div>
     </div>
   );

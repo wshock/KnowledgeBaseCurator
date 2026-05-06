@@ -1,18 +1,35 @@
 "use client";
 
+import { useState } from "react";
 import Sidebar from "@/src/components/dashboard/Sidebar";
+
+// Exportamos el contexto para que el Sidebar pueda comunicar su estado
+import { createContext, useContext } from "react";
+
+export const SidebarContext = createContext<{
+  collapsed: boolean;
+  setCollapsed: (v: boolean) => void;
+}>({ collapsed: false, setCollapsed: () => {} });
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const [collapsed, setCollapsed] = useState(false);
+
   return (
-    <div className="flex">
-      <Sidebar />
-      <main className="ml-52 w-full min-h-screen">
-        {children}
-      </main>
-    </div>
+    <SidebarContext.Provider value={{ collapsed, setCollapsed }}>
+      <div className="flex">
+        <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
+        <main
+          className={`w-full min-h-screen transition-all duration-300 ease-in-out ${
+            collapsed ? "ml-16" : "ml-52"
+          }`}
+        >
+          {children}
+        </main>
+      </div>
+    </SidebarContext.Provider>
   );
 }

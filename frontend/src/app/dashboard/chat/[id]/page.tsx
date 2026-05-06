@@ -60,12 +60,7 @@ export default function ChatPage() {
   return (
     <div className="flex flex-col h-screen bg-[#f0f5ff]">
 
-      {/* Header del chat */}
-      <div className="bg-white border-b border-gray-100 px-8 py-4 shadow-sm shrink-0">
-        <div className="max-w-3xl mx-auto flex items-center gap-2">
-          <h1 className="text-sm font-semibold text-[#1a2b4a] truncate">{chat.title}</h1>
-        </div>
-      </div>
+      
 
       {/* Mensajes */}
       <div className="flex-1 overflow-y-auto px-6 py-6">
@@ -97,14 +92,14 @@ export default function ChatPage() {
           {/* Indicador escribiendo */}
           {isAgentTyping && (
             <div className="flex items-end gap-3">
-              <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center shrink-0">
-                <RiSparklingLine className="h-3.5 w-3.5 text-white" />
+              <div className="w-7 h-7 rounded-full bg-blue-950 flex items-center justify-center shrink-0">
+                  <RiGraduationCapLine className="h-3.5 w-3.5 text-white" />
               </div>
               <div className="bg-white border border-gray-100 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm">
                 <div className="flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                  <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce [animation-delay:-0.15s]" />
-                  <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" />
+                  <span className="w-1.5 h-1.5 bg-blue-950 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                  <span className="w-1.5 h-1.5 bg-blue-950 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                  <span className="w-1.5 h-1.5 bg-blue-950 rounded-full animate-bounce" />
                 </div>
               </div>
             </div>
