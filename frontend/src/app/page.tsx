@@ -15,10 +15,7 @@ export default function Home() {
           </div>
 
           <div className="hidden md:flex items-center gap-8 text-sm font-medium text-gray-500">
-            <a href="#" className="text-blue-950 border-b-2 border-blue-950 pb-0.5">Philosophy</a>
-            <a href="#" className="hover:text-blue-950 transition-colors">Research</a>
-            <a href="#" className="hover:text-blue-950 transition-colors">Atelier</a>
-            <a href="#" className="hover:text-blue-950 transition-colors">Archive</a>
+            
           </div>
 
           <div className="flex items-center gap-x-6 lg:flex-1 lg:justify-end">

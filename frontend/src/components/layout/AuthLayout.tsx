@@ -17,7 +17,7 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({
   title = "SchoolAI",
   loginLink = "/login",
   showSidebar = false,
-  showSocialButtons = true,
+  showSocialButtons = false,
   headerText,
   linkText,
 }) => {

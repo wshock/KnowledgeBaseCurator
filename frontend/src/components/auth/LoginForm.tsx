@@ -24,7 +24,7 @@ interface LoginFormProps {
 }
 
 export default function LoginForm({
-  showSocialButtons = true,
+  showSocialButtons = false,
 }: LoginFormProps) {
   const [form, setForm] = useState<LoginFormData>(INITIAL_FORM);
   const [errors, setErrors] = useState<

@@ -8,7 +8,8 @@ export interface Message {
 }
 
 export interface Chat {
-  id: string;
+  id: string;        // ID local (string)
+  backendId: number; // ID real en la BD
   title: string;
   createdAt: Date;
   updatedAt: Date;
@@ -26,16 +27,17 @@ interface DashboardState {
   currentChat: Chat | null;
   chats: Chat[];
   user: User | null;
-  isAgentTyping: boolean; // ← NUEVO: el agente está "escribiendo"
+  isAgentTyping: boolean;
 
   setCurrentChat: (chat: Chat | null) => void;
   addChat: (chat: Chat) => void;
   updateChat: (id: string, chat: Partial<Chat>) => void;
   deleteChat: (id: string) => void;
   setUser: (user: User | null) => void;
-  createChat: (message: string) => string;
-  addAgentMessage: (chatId: string, content: string) => void; // ← NUEVO
-  setAgentTyping: (value: boolean) => void; // ← NUEVO
+  setChats: (chats: Chat[]) => void;
+  setAgentTyping: (value: boolean) => void;
+  addAgentMessage: (chatId: string, content: string) => void;
+  addChatFromBackend: (backendId: number, title: string, firstMessage: string) => string;
 }
 
 export const useDashboardStore = create<DashboardState>((set) => ({
@@ -46,10 +48,10 @@ export const useDashboardStore = create<DashboardState>((set) => ({
 
   setCurrentChat: (chat) => set({ currentChat: chat }),
 
+  setChats: (chats) => set({ chats }),
+
   addChat: (chat) =>
-    set((state) => ({
-      chats: [chat, ...state.chats],
-    })),
+    set((state) => ({ chats: [chat, ...state.chats] })),
 
   updateChat: (id, updatedChat) =>
     set((state) => ({
@@ -72,7 +74,6 @@ export const useDashboardStore = create<DashboardState>((set) => ({
 
   setAgentTyping: (value) => set({ isAgentTyping: value }),
 
-  // Agrega la respuesta del agente al chat correspondiente
   addAgentMessage: (chatId, content) =>
     set((state) => {
       const agentMessage: Message = {
@@ -81,52 +82,38 @@ export const useDashboardStore = create<DashboardState>((set) => ({
         content,
         timestamp: new Date(),
       };
-
       return {
         isAgentTyping: false,
         chats: state.chats.map((chat) =>
           chat.id === chatId
-            ? {
-                ...chat,
-                messages: [...chat.messages, agentMessage],
-                updatedAt: new Date(),
-              }
+            ? { ...chat, messages: [...chat.messages, agentMessage], updatedAt: new Date() }
             : chat
         ),
         currentChat:
           state.currentChat?.id === chatId
-            ? {
-                ...state.currentChat,
-                messages: [...state.currentChat.messages, agentMessage],
-                updatedAt: new Date(),
-              }
+            ? { ...state.currentChat, messages: [...state.currentChat.messages, agentMessage], updatedAt: new Date() }
             : state.currentChat,
       };
     }),
 
-  createChat: (message: string) => {
+  addChatFromBackend: (backendId, title, firstMessage) => {
     const id = Date.now().toString();
-
     const newChat: Chat = {
       id,
-      title: message.slice(0, 40),
+      backendId,
+      title,
       createdAt: new Date(),
       updatedAt: new Date(),
       messages: [
         {
           id: Date.now().toString(),
           role: "user",
-          content: message,
+          content: firstMessage,
           timestamp: new Date(),
         },
       ],
     };
-
-    set((state) => ({
-      chats: [newChat, ...state.chats],
-      currentChat: newChat,
-    }));
-
+    set((state) => ({ chats: [newChat, ...state.chats], currentChat: newChat }));
     return id;
   },
 }));

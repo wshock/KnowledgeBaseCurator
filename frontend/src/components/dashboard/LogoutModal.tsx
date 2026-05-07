@@ -12,10 +12,9 @@ export function LogoutModal({ isOpen, onConfirm, onCancel }: LogoutModalProps) {
   if (!isOpen) return null;
 
   return (
-    // Fondo oscuro
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
-      onClick={onCancel} // click fuera = cancelar
+      className="fixed inset-0 z-1 flex items-center justify-center bg-gray-400/40 backdrop-blur-sm"
+      onClick={onCancel} 
     >
       {/* Tarjeta */}
       <div
