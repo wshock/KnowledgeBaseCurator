@@ -26,7 +26,6 @@ class MessageCreate(BaseModel):
 class MessageResponse(BaseModel):
     id: int
     chat_id: int
-    user_id: int
     content: str
     timestamp: datetime
     sender: str
@@ -38,5 +37,16 @@ class MessagePairResponse(BaseModel):
     user_message: MessageResponse
     assistant_message: MessageResponse
     
+    class Config:
+        from_attributes = True
+        
+class DocumentResponse(BaseModel):
+    id: int
+    user_id: int
+    filename: str
+    chunks_indexed: int
+    description: str | None
+    uploaded_at: datetime
+
     class Config:
         from_attributes = True

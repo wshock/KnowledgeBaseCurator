@@ -30,7 +30,6 @@ async def create_message(
     
     user_message = Message(
         chat_id=chat_id,
-        user_id=current_user.id,
         content=message.content,
         sender="user"
     )
@@ -49,7 +48,6 @@ async def create_message(
     
     assistant_message = Message(
         chat_id=chat_id,
-        user_id=current_user.id,
         content=result["answer"],
         sender="assistant"
     )
