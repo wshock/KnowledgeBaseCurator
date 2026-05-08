@@ -35,13 +35,12 @@ class Message(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     chat_id = Column(Integer, ForeignKey("chats.id", ondelete="CASCADE"), nullable=False)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     content = Column(String, nullable=False)
     timestamp = Column(DateTime, default=datetime.utcnow)
     sender = Column(String, nullable=False)
     
     chat = relationship("Chat", back_populates="messages")
-    user = relationship("User")
+
     
 class Document(Base):
     __tablename__ = "documents"

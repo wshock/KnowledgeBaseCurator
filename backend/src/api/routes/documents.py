@@ -119,3 +119,32 @@ async def delete_document(
     db.commit()
 
     return {"message": f"Documento '{db_document.filename}' eliminado correctamente."}
+
+
+@router.get(
+    "/documents/chroma-debug",
+    summary="Ver chunks en ChromaDB (debug)",
+    tags=["Debug"],
+)
+async def chroma_debug(current_user: User = Depends(get_current_user)):
+    """Muestra todos los chunks en ChromaDB — útil para verificar borrados."""
+    try:
+        vs = get_vectorstore()
+        collection = vs._collection
+        result = collection.get(include=["metadatas"])
+
+        sources: dict[str, int] = {}
+        for meta in result["metadatas"]:
+            source = meta.get("source", "desconocido")
+            sources[source] = sources.get(source, 0) + 1
+
+        return {
+            "total_chunks": len(result["metadatas"]),
+            "documents": [
+                {"filename": name, "chunks": count}
+                for name, count in sorted(sources.items())
+            ],
+        }
+    except Exception:
+        logger.error("Error en chroma-debug:\n%s", traceback.format_exc())
+        raise HTTPException(status_code=500, detail="Error al consultar ChromaDB.")

@@ -26,7 +26,6 @@ class MessageCreate(BaseModel):
 class MessageResponse(BaseModel):
     id: int
     chat_id: int
-    user_id: int
     content: str
     timestamp: datetime
     sender: str
