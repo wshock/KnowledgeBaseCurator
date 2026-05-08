@@ -11,6 +11,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     loadSession();
   }, []);
 
+  // Escucha cambios en el token — carga chats cuando el token esté listo
   useLoadChats();
 
   return <>{children}</>;
