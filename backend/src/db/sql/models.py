@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from .database import Base
@@ -12,6 +12,7 @@ class User(Base):
     password = Column(String, nullable=False)
     
     chats = relationship("Chat", back_populates="user")
+    documents = relationship("Document", back_populates="user")
 
 class Chat(Base):
     __tablename__ = "chats"
@@ -41,3 +42,15 @@ class Message(Base):
     
     chat = relationship("Chat", back_populates="messages")
     user = relationship("User")
+    
+class Document(Base):
+    __tablename__ = "documents"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    filename = Column(String, nullable=False)
+    chunks_indexed = Column(Integer, nullable=False)
+    description = Column(Text, nullable=True)
+    uploaded_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="documents")

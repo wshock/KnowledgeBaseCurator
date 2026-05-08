@@ -3,11 +3,17 @@
 import logging
 import traceback
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, HTTPException, UploadFile, Depends
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
+from typing import List
 
 from db.chroma_client import get_vectorstore
+from db.sql.database import get_db
+from db.sql.models import Document, User
+from db.sql.schemas import DocumentResponse
 from rag.ingest import ingest_pdf
+from utils.security import get_current_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Documentos"])
@@ -26,7 +32,11 @@ class UploadResponse(BaseModel):
     response_model=UploadResponse,
     summary="Subir y indexar un PDF",
 )
-async def upload_document(file: UploadFile = File(...)):
+async def upload_document(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """Valida, parsea e indexa un PDF en la base vectorial."""
 
     if not file.filename or not file.filename.lower().endswith(".pdf"):
@@ -41,6 +51,16 @@ async def upload_document(file: UploadFile = File(...)):
         logger.error("Error en /upload:\n%s", traceback.format_exc())
         raise HTTPException(status_code=500, detail="Error al procesar el archivo.")
 
+    # Persist document record in PostgreSQL
+    db_document = Document(
+        user_id=current_user.id,
+        filename=file.filename,
+        chunks_indexed=chunks_count,
+    )
+    db.add(db_document)
+    db.commit()
+    db.refresh(db_document)
+
     return UploadResponse(
         filename=file.filename,
         chunks_indexed=chunks_count,
@@ -50,50 +70,52 @@ async def upload_document(file: UploadFile = File(...)):
 
 @router.get(
     "/documents",
-    summary="Listar documentos indexados en ChromaDB",
-    tags=["Debug"],
+    response_model=List[DocumentResponse],
+    summary="Listar documentos del usuario",
 )
-async def list_documents():
-    """
-    Muestra cuantos chunks hay por documento en la coleccion.
-    Util para verificar que PDFs estan indexados.
-    """
-    try:
-        vs = get_vectorstore()
-        collection = vs._collection
-        result = collection.get(include=["metadatas"])
-
-        sources: dict[str, int] = {}
-        for meta in result["metadatas"]:
-            source = meta.get("source", "desconocido")
-            sources[source] = sources.get(source, 0) + 1
-
-        return {
-            "total_chunks": len(result["metadatas"]),
-            "documents": [
-                {"filename": name, "chunks": count}
-                for name, count in sorted(sources.items())
-            ],
-        }
-    except Exception as exc:
-        logger.error("Error en /documents:\n%s", traceback.format_exc())
-        raise HTTPException(status_code=500, detail="Error al listar los documentos.")
+async def list_documents(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Retorna los documentos del usuario desde PostgreSQL."""
+    documents = db.query(Document).filter(Document.user_id == current_user.id).all()
+    return documents
 
 
 @router.delete(
-    "/documents/{filename}",
-    summary="Eliminar un documento de ChromaDB",
-    tags=["Debug"],
+    "/documents/{document_id}",
+    summary="Eliminar un documento de ChromaDB y PostgreSQL",
 )
-async def delete_document(filename: str):
+async def delete_document(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """
-    Elimina todos los chunks de un documento especifico por nombre de archivo.
+    Elimina el documento en ambos sistemas:
+    1. Chunks en ChromaDB (para que el agente deje de usarlo)
+    2. Registro en PostgreSQL (para que desaparezca del listado del usuario)
     """
+    # Verificar que el documento existe y pertenece al usuario
+    db_document = (
+        db.query(Document)
+        .filter(Document.id == document_id, Document.user_id == current_user.id)
+        .first()
+    )
+    if not db_document:
+        raise HTTPException(status_code=404, detail="Documento no encontrado.")
+
+    # 1. Borrar chunks de ChromaDB
     try:
         vs = get_vectorstore()
         collection = vs._collection
-        collection.delete(where={"source": filename})
-        return {"message": f"Documento '{filename}' eliminado correctamente."}
-    except Exception as exc:
+        collection.delete(where={"source": db_document.filename})
+    except Exception:
         logger.error("Error en /documents DELETE:\n%s", traceback.format_exc())
-        raise HTTPException(status_code=500, detail="Error al eliminar el documento.")
+        raise HTTPException(status_code=500, detail="Error al eliminar el documento de ChromaDB.")
+
+    # 2. Borrar registro de PostgreSQL
+    db.delete(db_document)
+    db.commit()
+
+    return {"message": f"Documento '{db_document.filename}' eliminado correctamente."}
