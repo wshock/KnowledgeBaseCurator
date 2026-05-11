@@ -56,62 +56,81 @@ class RAGState(TypedDict):
     answer: str
     mode: str                       # MODE_QA o MODE_CURATE
 
+def _build_intent_classifier_prompt(question: str) -> str:
 
+    return f"""
+    Eres un clasificador de intención para un sistema RAG académico.
+
+    Debes clasificar el mensaje del usuario en UNA SOLA categoría:
+
+    - chat
+    → conversación casual, saludos, agradecimientos o charla general.
+
+    - qa
+    → preguntas sobre contenido académico, libros o documentos.
+    → incluye preguntas sobre documentos del usuario.
+
+    - curate
+    → solicitudes de análisis, comparación, revisión crítica,
+    detección de inconsistencias, evaluación o validación académica.
+
+    IMPORTANTE:
+    - Responde SOLO con una palabra:
+    chat
+    qa
+    o
+    curate
+
+    Mensaje del usuario:
+    {question}
+    """
 
 
 def detect_intent(question: str) -> str:
     """
-    Detecta la intención del usuario:
-    - chat     → conversación casual
-    - qa       → preguntas normales sobre documentos
-    - curate   → análisis académico/comparación
+    Detecta intención usando un LLM classifier.
     """
 
-    q = question.lower().strip()
+    try:
 
-    # ---------------------------------------------------
-    # Conversación casual
-    # ---------------------------------------------------
-    chat_keywords = [
-        "hola",
-        "gracias",
-        "buenas",
-        "como estas",
-        "qué tal",
-        "me llamo",
-        "mi nombre es",
-    ]
+        llm = ChatGroq(
+            model=settings.GROQ_CLASSIFIER_MODEL,
+            api_key=settings.GROQ_API_KEY,
+            temperature=0,
+        )
 
-    # SOLO si el mensaje es corto y casual
-    if (
-        any(k in q for k in chat_keywords)
-        and len(q.split()) <= 5
-    ):
-        return MODE_CHAT
+        prompt = _build_intent_classifier_prompt(question)
 
-    # ---------------------------------------------------
-    # Curaduría / análisis
-    # ---------------------------------------------------
-    curate_keywords = [
-        "analiza",
-        "compar",
-        "inconsistencia",
-        "conflicto",
-        "redundancia",
-        "recomend",
-        "evalua",
-        "revisa el documento",
-        "cura",
-        "contradic",
-    ]
+        response = llm.invoke([
+            HumanMessage(content=prompt)
+        ])
 
-    if any(k in q for k in curate_keywords):
-        return MODE_CURATE
+        intent = (
+            response.content
+            .strip()
+            .lower()
+            .replace('"', "")
+            .replace(".", "")
+        )
 
-    # ---------------------------------------------------
-    # Default
-    # ---------------------------------------------------
-    return MODE_QA
+        valid_modes = {
+            MODE_CHAT,
+            MODE_QA,
+            MODE_CURATE,
+        }
+
+        # fallback de seguridad
+        if intent not in valid_modes:
+            return MODE_QA
+
+        return intent
+
+    except Exception as e:
+
+        print(f"[intent-classifier] Error: {e}")
+
+        # fallback seguro
+        return MODE_QA
  
 # ---------------------------------------------------------------------------
 # Helpers de recuperación
@@ -355,7 +374,10 @@ Reglas IMPORTANTES:
 - Responde de forma natural y útil.
 - Prioriza la información del documento del usuario cuando la pregunta sea sobre su archivo.
 - Usa los libros base para complementar, corregir o contextualizar.
-- Si detectas diferencias importantes entre el documento del usuario y los libros base, puedes mencionarlas brevemente.
+- Si la pregunta es sobre contenido académico general (transistores, circuitos, etc.), 
+  responde solo con los libros base e ignora el documento del usuario si no es relevante.
+- Si la pregunta es directamente sobre el documento del usuario, entonces sí usa 
+  ambas fuentes y puedes mencionar diferencias con los libros base.
 - NO generes reportes de curaduría ni listas de inconsistencias a menos que el usuario lo solicite explícitamente.
 - No inventes información.
 
@@ -380,8 +402,10 @@ def _build_curate_prompt(
     analysis_error: Optional[str],
     ) -> str:
         """
-        Prompt de curaduría que incluye el análisis previo del nodo analyze.
-        Genera una respuesta estructurada con hallazgos y recomendaciones.
+        Prompt de curaduría adaptativo:
+        - Si el usuario pide mejoras o consejos → respuesta conversacional y directa.
+        - Si el usuario pide análisis formal o reporte → respuesta estructurada completa.
+        Sin markdown con asteriscos, usando texto plano y emojis para organizar.
         """
         base_text = "\n\n---\n\n".join(base_context) if base_context else "Sin contenido de libros base."
         user_text = "\n\n---\n\n".join(user_context)
@@ -397,28 +421,40 @@ def _build_curate_prompt(
         else:
             suggestions_text = "No se detectaron inconsistencias ni sugerencias relevantes."
     
-        return f"""Eres un curador académico experto. Un estudiante ha subido un documento al sistema.
-    Ya se realizó un análisis automático de inconsistencias. Tu tarea es presentar los hallazgos
-    de forma clara y profesional al curador del curso.
-    
-    Tema: {question}
-    
-    === ANÁLISIS AUTOMÁTICO DE INCONSISTENCIAS ===
-    {suggestions_text}
-    
-    === CONTENIDO DE LIBROS BASE ===
-    {base_text}
-    
-    === CONTENIDO DEL DOCUMENTO DEL USUARIO ===
-    {user_text}
-    
-    Genera un reporte estructurado con:
-    1. Resumen ejecutivo (2-3 oraciones sobre el documento del usuario)
-    2. Hallazgos detallados (explica cada inconsistencia o sugerencia encontrada)
-    3. Recomendación final (qué debe hacer el curador: aprobar, rechazar, solicitar revisión, etc.)
-    
-    Si no se detectaron problemas, indica que el documento es consistente con el material del curso.
-    """
+        return f"""Eres un curador académico experto y amigable.
+
+        El usuario hizo esta solicitud: "{question}"
+
+        Analiza si es una solicitud CONVERSACIONAL (mejoras, consejos, qué le falta) o FORMAL (reporte, análisis completo, inconsistencias).
+
+        Si es CONVERSACIONAL:
+        - Responde de forma directa y natural, como si fuera una conversación.
+        - Da sugerencias concretas y puntuales sin estructuras rígidas.
+        - Usa un tono amigable y constructivo.
+        - No hagas un reporte completo, solo responde lo que preguntó.
+
+        Si es FORMAL:
+        - Organiza la respuesta en secciones claras usando emojis como separadores.
+        - Ejemplo: "📋 Resumen", "🔍 Hallazgos", "✅ Recomendacion"
+        - Sé detallado y profesional.
+
+        REGLAS DE FORMATO (aplican siempre):
+        - NO uses asteriscos para negrillas ni markdown (**texto**).
+        - NO uses numeracion con puntos seguidos de texto en negrilla.
+        - Usa texto plano, emojis para organizar si es necesario, y saltos de linea.
+        - Escribe en español.
+
+        === ANALISIS AUTOMATICO ===
+        {suggestions_text}
+
+        === LIBROS BASE ===
+        {base_text}
+
+        === DOCUMENTO DEL USUARIO ===
+        {user_text}
+
+        Respuesta:"""
+
 
 
 def generate(state: RAGState) -> dict:
@@ -496,11 +532,15 @@ Mensaje:
 def route_after_retrieve(state: RAGState) -> str:
     """
     Decide el siguiente nodo después de retrieve.
-    Si hay documentos del usuario → analyze.
-    Si no → generate directamente.
     """
-    if state["mode"] == MODE_CURATE:
+
+    # Curaduría SOLO si hay documentos del usuario
+    if (
+        state["mode"] == MODE_CURATE
+        and state.get("user_context")
+    ):
         return "analyze"
+
     return "generate"
  
 

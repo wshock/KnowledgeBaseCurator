@@ -39,9 +39,13 @@ async def create_message(
     
     try:
         result = rag_chain.invoke({
-            "question": message.content,
-            "context": [],
-            "answer": "",
+                "question": message.content,
+                "base_context": [],
+                "user_context": [],
+                "suggestions": [],
+                "analysis_error": None,
+                "answer": "",
+                "mode": "",
         })
     except Exception as exc:
         raise HTTPException(status_code=500, detail="Error interno al procesar la pregunta.")
