@@ -30,8 +30,9 @@ from config import settings
 # ---------------------------------------------------------------------------
 # Constantes de modo
 # ---------------------------------------------------------------------------
-MODE_QA = "qa"          # Respuesta a pregunta normal
-MODE_CURATE = "curate"  # Análisis y curaduría de documento del usuario
+MODE_CHAT = "chat"
+MODE_QA = "qa"
+MODE_CURATE = "curate"
 
 # ---------------------------------------------------------------------------
 # Estado del grafo
@@ -55,19 +56,75 @@ class RAGState(TypedDict):
     answer: str
     mode: str                       # MODE_QA o MODE_CURATE
 
+
+
+
+def detect_intent(question: str) -> str:
+    """
+    Detecta la intención del usuario:
+    - chat     → conversación casual
+    - qa       → preguntas normales sobre documentos
+    - curate   → análisis académico/comparación
+    """
+
+    q = question.lower().strip()
+
+    # ---------------------------------------------------
+    # Conversación casual
+    # ---------------------------------------------------
+    chat_keywords = [
+        "hola",
+        "gracias",
+        "buenas",
+        "como estas",
+        "qué tal",
+        "me llamo",
+        "mi nombre es",
+    ]
+
+    # SOLO si el mensaje es corto y casual
+    if (
+        any(k in q for k in chat_keywords)
+        and len(q.split()) <= 5
+    ):
+        return MODE_CHAT
+
+    # ---------------------------------------------------
+    # Curaduría / análisis
+    # ---------------------------------------------------
+    curate_keywords = [
+        "analiza",
+        "compar",
+        "inconsistencia",
+        "conflicto",
+        "redundancia",
+        "recomend",
+        "evalua",
+        "revisa el documento",
+        "cura",
+        "contradic",
+    ]
+
+    if any(k in q for k in curate_keywords):
+        return MODE_CURATE
+
+    # ---------------------------------------------------
+    # Default
+    # ---------------------------------------------------
+    return MODE_QA
  
 # ---------------------------------------------------------------------------
 # Helpers de recuperación
 # ---------------------------------------------------------------------------
 
-def _retrieve_by_type(question: str, doc_type: str, k: int) -> list[str]:
+def _retrieve_by_type(question: str, document_type: str, k: int) -> list[str]:
     
     """
-    Recupera chunks de ChromaDB filtrando por doc_type.
+    Recupera chunks de ChromaDB filtrando por document_type.
  
     Args:
         question: Pregunta o tema a buscar.
-        doc_type: "base_knowledge" o "user_upload".
+        document_type: "base_knowledge" o "user_upload".
         k: Número de chunks a recuperar.
  
     Returns:
@@ -83,14 +140,14 @@ def _retrieve_by_type(question: str, doc_type: str, k: int) -> list[str]:
                 "k": k,
                 "fetch_k": settings.RETRIEVER_FETCH_K,
                 "lambda_mult": settings.RETRIEVER_MMR_LAMBDA,
-                "filter": {"doc_type": doc_type},
+                "filter": {"document_type": document_type},
             },
         )
         docs = retriever.invoke(question)
         return [doc.page_content for doc in docs]
     except Exception as e:
         # No interrumpimos el flujo; el nodo caller decide qué hacer.
-        print(f"[retrieve] Advertencia al recuperar '{doc_type}': {e}")
+        print(f"[retrieve] Advertencia al recuperar '{document_type}': {e}")
         return []
     
 
@@ -101,20 +158,40 @@ def _retrieve_by_type(question: str, doc_type: str, k: int) -> list[str]:
 def retrieve(state: RAGState) -> dict:
     """
     Nodo 1 — Recuperación.
- 
-    Busca en ChromaDB por separado:
-    - Chunks de libros base  → base_context
-    - Chunks del usuario     → user_context
- 
-    El modo se decide aquí: si hay user_context → MODE_CURATE, si no → MODE_QA.
     """
+
     question = state["question"]
- 
-    base_chunks = _retrieve_by_type(question, "base_knowledge", settings.RETRIEVER_K)
-    user_chunks = _retrieve_by_type(question, "user_upload", settings.RETRIEVER_K)
- 
-    mode = MODE_CURATE if user_chunks else MODE_QA
- 
+
+    # Detectar intención REAL
+    mode = detect_intent(question)
+
+    # ---------------------------------------------------
+    # CHAT → no hacer retrieval
+    # ---------------------------------------------------
+    if mode == MODE_CHAT:
+        return {
+            "base_context": [],
+            "user_context": [],
+            "mode": MODE_CHAT,
+            "suggestions": [],
+            "analysis_error": None,
+        }
+
+    # ---------------------------------------------------
+    # QA o CURATE → sí hacer retrieval
+    # ---------------------------------------------------
+    base_chunks = _retrieve_by_type(
+        question,
+        "base_knowledge",
+        settings.RETRIEVER_K,
+    )
+
+    user_chunks = _retrieve_by_type(
+        question,
+        "user_upload",
+        settings.RETRIEVER_K,
+    )
+
     return {
         "base_context": base_chunks,
         "user_context": user_chunks,
@@ -248,18 +325,51 @@ def analyze(state: RAGState) -> dict:
 # ---------------------------------------------------------------------------
 # Nodo 3 — Generación de respuesta final
 # ---------------------------------------------------------------------------
-def _build_qa_prompt(question: str, base_context: list[str]) -> str:
-    """Prompt estándar para responder una pregunta con base en los libros."""
-    context_text = "\n\n---\n\n".join(base_context) if base_context else "Sin contexto disponible."
-    return f"""Eres un asistente experto. Responde la pregunta basándote ÚNICAMENTE en el contexto proporcionado.
-    Si la respuesta no se encuentra en el contexto, responde: "No encontré información suficiente en los documentos para responder esa pregunta."
- 
-    Contexto:
-    {context_text}
- 
-    Pregunta: {question}
- 
-    Respuesta:"""
+def _build_qa_prompt(
+    question: str,
+    base_context: list[str],
+    user_context: list[str],
+) -> str:
+
+    base_text = (
+        "\n\n---\n\n".join(base_context)
+        if base_context
+        else "Sin contenido base."
+    )
+
+    user_text = (
+        "\n\n---\n\n".join(user_context)
+        if user_context
+        else "Sin documentos del usuario."
+    )
+
+    return f"""
+Eres un asistente académico inteligente y útil.
+
+Tu tarea es responder preguntas usando:
+
+1. Los documentos del usuario como fuente principal.
+2. Los libros base como referencia académica de apoyo.
+
+Reglas IMPORTANTES:
+- Responde de forma natural y útil.
+- Prioriza la información del documento del usuario cuando la pregunta sea sobre su archivo.
+- Usa los libros base para complementar, corregir o contextualizar.
+- Si detectas diferencias importantes entre el documento del usuario y los libros base, puedes mencionarlas brevemente.
+- NO generes reportes de curaduría ni listas de inconsistencias a menos que el usuario lo solicite explícitamente.
+- No inventes información.
+
+=== LIBROS BASE ===
+{base_text}
+
+=== DOCUMENTOS DEL USUARIO ===
+{user_text}
+
+Pregunta:
+{question}
+
+Respuesta:
+"""
  
  
 def _build_curate_prompt(
@@ -313,13 +423,30 @@ def _build_curate_prompt(
 
 def generate(state: RAGState) -> dict:
     """
-    Nodo 3 — Generación.
- 
-    Construye el prompt según el modo (qa o curate) y genera la respuesta final.
-    En modo curate incluye el análisis de inconsistencias del nodo anterior.
+    Nodo 3 — Generación final.
     """
+
     try:
-        if state["mode"] == MODE_CURATE:
+
+        # ---------------------------------------------------
+        # CHAT
+        # ---------------------------------------------------
+        if state["mode"] == MODE_CHAT:
+
+            prompt = f"""
+Eres un asistente conversacional amigable.
+
+Responde naturalmente al usuario.
+
+Mensaje:
+{state["question"]}
+"""
+
+        # ---------------------------------------------------
+        # CURATE
+        # ---------------------------------------------------
+        elif state["mode"] == MODE_CURATE:
+
             prompt = _build_curate_prompt(
                 question=state["question"],
                 base_context=state["base_context"],
@@ -327,28 +454,39 @@ def generate(state: RAGState) -> dict:
                 suggestions=state.get("suggestions", []),
                 analysis_error=state.get("analysis_error"),
             )
+
+        # ---------------------------------------------------
+        # QA
+        # ---------------------------------------------------
         else:
+
             prompt = _build_qa_prompt(
                 question=state["question"],
                 base_context=state["base_context"],
+                user_context=state["user_context"],
             )
- 
+
         llm = ChatGroq(
             model=settings.GROQ_MODEL,
             api_key=settings.GROQ_API_KEY,
             temperature=0,
         )
- 
-        response = llm.invoke([HumanMessage(content=prompt)])
+
+        response = llm.invoke([
+            HumanMessage(content=prompt)
+        ])
+
         return {"answer": response.content}
- 
+
     except Exception as e:
-        # Error crítico: el LLM no pudo generar respuesta.
+
         error_answer = (
             f"Error al generar la respuesta: {e}\n"
-            "Por favor intenta nuevamente o contacta al administrador del sistema."
+            "Por favor intenta nuevamente."
         )
+
         print(f"[generate] Error crítico: {e}")
+
         return {"answer": error_answer}
     
 
