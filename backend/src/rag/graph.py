@@ -430,13 +430,21 @@ def _build_curate_prompt(
         Si es CONVERSACIONAL:
         - Responde de forma directa y natural, como si fuera una conversación.
         - Da sugerencias concretas y puntuales sin estructuras rígidas.
-        - Usa un tono amigable y constructivo.
+        - Usa un tono amigable y constructivo, Tambien puedes usar emojis para que se vea mas amigable.
         - No hagas un reporte completo, solo responde lo que preguntó.
-
+        
         Si es FORMAL:
         - Organiza la respuesta en secciones claras usando emojis como separadores.
         - Ejemplo: "📋 Resumen", "🔍 Hallazgos", "✅ Recomendacion"
         - Sé detallado y profesional.
+        REGLAS DE CONTENIDO (aplican siempre):
+        - SIEMPRE usa los libros base como referencia para tus sugerencias.
+        - Si el documento del usuario y los libros tienen temas en común, compáralos directamente
+        señalando diferencias, gaps o contradicciones concretas.
+        - Si el documento del usuario NO tiene relación directa con los libros, dilo claramente
+        pero aun así indica qué temas de los libros debería considerar el usuario para
+        enriquecer su documento, citando ejemplos concretos del contenido de los libros.
+        - Nunca des sugerencias genéricas sin basarlas en el contenido real de los libros base
 
         REGLAS DE FORMATO (aplican siempre):
         - NO uses asteriscos para negrillas ni markdown (**texto**).
