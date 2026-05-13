@@ -10,7 +10,6 @@ export function useLoadChats() {
   const setChats = useDashboardStore((state) => state.setChats);
 
   useEffect(() => {
-    // Solo corre cuando el token esté disponible
     if (!token) return;
 
     apiGetChats(token)
@@ -21,10 +20,11 @@ export function useLoadChats() {
           title: c.title,
           createdAt: new Date(c.created_at),
           updatedAt: new Date(c.updated_at),
+          // Dejamos messages vacío — setChats hará merge con lo que ya hay en el store
           messages: [],
         }));
         setChats(mapped);
       })
       .catch(console.error);
-  }, [token]); // ← se vuelve a ejecutar cada vez que el token cambia
+  }, [token]);
 }
