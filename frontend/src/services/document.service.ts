@@ -42,9 +42,6 @@ async function handleResponse<T>(res: Response): Promise<T> {
   return res.json();
 }
 
-// ─── ARCHIVOS GLOBALES (subidos en /subir-archivo) ───────────────────────────
-
-/** Obtiene todos los documentos globales del usuario */
 export async function apiGetGlobalDocuments(token: string): Promise<GlobalDocument[]> {
   const res = await fetch(`${API_BASE_URL}/documents/`, {
     headers: authHeaders(token),
@@ -52,7 +49,6 @@ export async function apiGetGlobalDocuments(token: string): Promise<GlobalDocume
   return handleResponse<GlobalDocument[]>(res);
 }
 
-/** Sube un PDF como documento global */
 export async function apiUploadGlobalDocument(
   token: string,
   file: File,
@@ -70,7 +66,6 @@ export async function apiUploadGlobalDocument(
   return handleResponse<GlobalDocument>(res);
 }
 
-/** Elimina un documento global */
 export async function apiDeleteGlobalDocument(token: string, docId: number): Promise<void> {
   const res = await fetch(`${API_BASE_URL}/documents/${docId}`, {
     method: "DELETE",
@@ -82,9 +77,6 @@ export async function apiDeleteGlobalDocument(token: string, docId: number): Pro
   }
 }
 
-// ─── ARCHIVOS LOCALES (adjuntos por chat) ────────────────────────────────────
-
-/** Obtiene los documentos locales de un chat */
 export async function apiGetLocalDocuments(token: string, chatId: number): Promise<LocalDocument[]> {
   const res = await fetch(`${API_BASE_URL}/chats/${chatId}/documents/`, {
     headers: authHeaders(token),
@@ -92,7 +84,6 @@ export async function apiGetLocalDocuments(token: string, chatId: number): Promi
   return handleResponse<LocalDocument[]>(res);
 }
 
-/** Sube un PDF como documento local de un chat */
 export async function apiUploadLocalDocument(
   token: string,
   chatId: number,
@@ -109,7 +100,6 @@ export async function apiUploadLocalDocument(
   return handleResponse<LocalDocument>(res);
 }
 
-/** Elimina un documento local */
 export async function apiDeleteLocalDocument(
   token: string,
   chatId: number,
@@ -125,14 +115,11 @@ export async function apiDeleteLocalDocument(
   }
 }
 
-// ─── FUENTES ACTIVAS EN EL CHAT ──────────────────────────────────────────────
-
 export interface ActiveSources {
   global_doc_ids: number[];
   local_doc_ids: number[];
 }
 
-/** Guarda qué documentos están activos como fuente en un chat */
 export async function apiSetActiveSources(
   token: string,
   chatId: number,
@@ -149,7 +136,6 @@ export async function apiSetActiveSources(
   }
 }
 
-/** Obtiene las fuentes activas de un chat */
 export async function apiGetActiveSources(
   token: string,
   chatId: number

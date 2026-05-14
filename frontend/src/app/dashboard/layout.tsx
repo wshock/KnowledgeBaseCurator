@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Sidebar from "@/src/components/dashboard/Sidebar";
 
-// Exportamos el contexto para que el Sidebar pueda comunicar su estado
 import { createContext, useContext } from "react";
 
 export const SidebarContext = createContext<{

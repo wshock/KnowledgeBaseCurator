@@ -98,7 +98,6 @@ export default function CentroAyudaPage() {
     <div className="min-h-screen bg-[#f0f5ff] p-8">
       <div className="max-w-4xl mx-auto">
 
-        {/* Hero */}
         <div className="bg-[#1a2b4a] rounded-2xl p-8 mb-8 flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2 mb-2">
@@ -115,7 +114,6 @@ export default function CentroAyudaPage() {
           </div>
         </div>
 
-        {/* Guías */}
         <div className="mb-8">
           <h2 className="text-base font-bold text-[#1a2b4a] mb-4">Guías de uso</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -175,7 +173,6 @@ export default function CentroAyudaPage() {
           </p>
         </div>
 
-        {/* FAQs */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-50">
             <h2 className="text-sm font-bold text-[#1a2b4a]">Preguntas frecuentes</h2>

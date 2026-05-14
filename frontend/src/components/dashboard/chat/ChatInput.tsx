@@ -62,7 +62,6 @@ export function ChatInput({
     const pdfs = Array.from(files).filter((f) => f.type === "application/pdf");
     const newAttached = pdfs.map((file) => ({ file, localId: Date.now().toString() + Math.random() }));
     setAttachedFiles((prev) => [...prev, ...newAttached]);
-    // Abre el modal en pestaña local para que el usuario vea el archivo adjunto
     setSourcesOpen(true);
   }, []);
 
@@ -100,7 +99,7 @@ export function ChatInput({
           </div>
         )}
 
-        {/* Indicador de fuentes activas */}
+        {/* Fuentes activas */}
         {totalSources > 0 && (
           <div className="flex items-center gap-1.5 mb-2 px-1">
             <RiStackLine className="h-3 w-3 text-blue-500" />
@@ -119,7 +118,6 @@ export function ChatInput({
         {/* Input principal */}
         <div className="relative flex items-end gap-2 bg-white border border-gray-300 rounded-2xl p-3 shadow-sm focus-within:ring-2 focus-within:ring-blue-950 focus-within:border-transparent">
 
-          {/* Clip: adjuntar archivo local */}
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
@@ -137,7 +135,6 @@ export function ChatInput({
             onChange={(e) => handleFilesAttach(e.target.files)}
           />
 
-          {/* Textarea */}
           <textarea
             ref={textareaRef}
             value={message}
@@ -149,7 +146,6 @@ export function ChatInput({
             className="flex-1 resize-none bg-transparent outline-none text-gray-800 placeholder-gray-400 text-sm min-h-[24px] max-h-[200px] overflow-y-auto self-end"
           />
 
-          {/* Botón fuentes */}
           <button
             type="button"
             onClick={() => setSourcesOpen(true)}
@@ -168,7 +164,6 @@ export function ChatInput({
             )}
           </button>
 
-          {/* Enviar */}
           <button
             onClick={handleSend}
             disabled={!message.trim() || disabled}

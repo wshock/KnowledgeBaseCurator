@@ -35,9 +35,7 @@ export default function Home() {
         </nav>
       </header>
 
-      {/* HERO */}
       <main className="max-w-7xl mx-auto px-10 pt-20 pb-32 flex flex-col md:flex-row items-center gap-16">
-        {/* LEFT */}
         <div className="flex-1 flex flex-col gap-6">
           <span className="inline-flex items-center w-fit gap-2 bg-indigo-100 text-indigo-700 text-xs font-semibold tracking-widest uppercase px-4 py-2 rounded-full border border-indigo-200">
             The Digital Atelier
@@ -71,23 +69,18 @@ export default function Home() {
           </div>
         </div>
 
-        {/* RIGHT — imagen placeholder con gradiente */}
         <div className="flex-1 flex justify-center">
           <div className="relative w-full max-w-lg aspect-[4/3] rounded-3xl overflow-hidden shadow-2xl">
-            {/* Gradiente de fondo tipo tech */}
             <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-blue-950 to-indigo-900" />
-            {/* Efecto de brillo */}
             <div className="absolute inset-0 flex items-center justify-center opacity-20">
               <div className="w-64 h-64 bg-cyan-400 rounded-full blur-3xl" />
             </div>
-            {/* Grid lines decorativas */}
             <div className="absolute inset-0 opacity-10"
               style={{
                 backgroundImage: "linear-gradient(rgba(100,200,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(100,200,255,0.5) 1px, transparent 1px)",
                 backgroundSize: "40px 40px"
               }}
             />
-            {/* Ícono central */}
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
               <div className="w-16 h-16 bg-cyan-400/20 border border-cyan-400/40 rounded-2xl flex items-center justify-center backdrop-blur-sm">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#67e8f9" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">

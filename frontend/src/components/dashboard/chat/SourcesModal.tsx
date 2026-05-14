@@ -13,8 +13,6 @@ import { HiOutlineDocumentText } from "react-icons/hi2";
 import { RiGlobalLine } from "react-icons/ri";
 import { MdOutlineChat } from "react-icons/md";
 
-// ─── Tipos ────────────────────────────────────────────────────────────────────
-
 export interface MockDocument {
   id: number;
   filename: string;
@@ -33,22 +31,18 @@ interface SourcesModalProps {
   isOpen: boolean;
   onClose: () => void;
   chatId: number;
-  /** Fuentes actualmente activas — para preseleccionar */
+  /** Fuentes activas*/
   activeSources: SelectedSources;
   /** Se llama al confirmar con los IDs seleccionados */
   onConfirm: (sources: SelectedSources) => void;
-  /** Token para llamadas reales cuando el backend esté listo */
+  /** Token para llamadas con el backend */
   token: string;
 }
-
-// ─── Mock data (reemplazar por llamadas reales cuando el backend esté listo) ──
 
 const MOCK_GLOBAL_DOCS: MockDocument[] = [
   { id: 1, filename: "electronica_boylestad.pdf", size_bytes: 12_400_000, uploaded_at: "2026-05-10T10:00:00Z", scope: "global", chunks_indexed: 312 },
   { id: 2, filename: "fundamentos-de-sistemas_floyd.pdf", size_bytes: 8_100_000, uploaded_at: "2026-05-11T09:30:00Z", scope: "global", chunks_indexed: 198 },
 ];
-
-// ─── Utilidades ───────────────────────────────────────────────────────────────
 
 function formatSize(bytes: number) {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -68,8 +62,6 @@ interface PendingUpload {
   docId?: number;
 }
 
-// ─── Componente principal ─────────────────────────────────────────────────────
-
 export function SourcesModal({
   isOpen,
   onClose,
@@ -88,21 +80,16 @@ export function SourcesModal({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
 
-  // Carga datos al abrir
   useEffect(() => {
     if (!isOpen) return;
     setSelectedGlobal(new Set(activeSources.globalIds));
     setSelectedLocal(new Set(activeSources.localIds));
     setPendingUploads([]);
 
-    // TODO: cuando el backend esté listo, reemplazar con:
-    // apiGetGlobalDocuments(token).then(setGlobalDocs)
-    // apiGetLocalDocuments(token, chatId).then(setLocalDocs)
     setGlobalDocs(MOCK_GLOBAL_DOCS);
-    setLocalDocs([]); // vacío hasta que el backend exista
+    setLocalDocs([]); 
   }, [isOpen, chatId]);
 
-  // Toggle selección global
   const toggleGlobal = (id: number) => {
     setSelectedGlobal((prev) => {
       const next = new Set(prev);
@@ -111,7 +98,6 @@ export function SourcesModal({
     });
   };
 
-  // Toggle selección local
   const toggleLocal = (id: number) => {
     setSelectedLocal((prev) => {
       const next = new Set(prev);
@@ -120,7 +106,6 @@ export function SourcesModal({
     });
   };
 
-  // Subida de archivo local (mock — conectar cuando backend esté listo)
   const handleLocalUpload = useCallback(async (file: File) => {
     if (file.type !== "application/pdf") {
       setPendingUploads((prev) => [
@@ -132,12 +117,6 @@ export function SourcesModal({
 
     setPendingUploads((prev) => [...prev, { file, status: "uploading" }]);
 
-    // TODO: reemplazar con llamada real:
-    // const doc = await apiUploadLocalDocument(token, chatId, file);
-    // setLocalDocs(prev => [...prev, { ...doc, scope: "local" }]);
-    // setSelectedLocal(prev => new Set([...prev, doc.id]));
-
-    // Mock: simula subida exitosa
     await new Promise((r) => setTimeout(r, 1200));
     const mockId = Date.now();
     const mockDoc: MockDocument = {
@@ -169,12 +148,6 @@ export function SourcesModal({
       localIds: Array.from(selectedLocal),
     });
 
-    // TODO: cuando el backend esté listo, también llamar:
-    // apiSetActiveSources(token, chatId, {
-    //   global_doc_ids: Array.from(selectedGlobal),
-    //   local_doc_ids: Array.from(selectedLocal),
-    // });
-
     onClose();
   };
 
@@ -184,17 +157,13 @@ export function SourcesModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/30 backdrop-blur-sm"
         onClick={onClose}
       />
-
-      {/* Modal */}
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col overflow-hidden"
         style={{ maxHeight: "80vh" }}>
 
-        {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div>
             <h2 className="text-base font-bold text-[#1a2b4a]">Fuentes del chat</h2>
@@ -210,7 +179,6 @@ export function SourcesModal({
           </button>
         </div>
 
-        {/* Tabs */}
         <div className="flex border-b border-gray-100 px-6">
           <button
             onClick={() => setTab("global")}
@@ -246,10 +214,8 @@ export function SourcesModal({
           </button>
         </div>
 
-        {/* Body */}
         <div className="flex-1 overflow-y-auto">
 
-          {/* TAB: GLOBAL */}
           {tab === "global" && (
             <div className="p-4 space-y-2">
               {globalDocs.length === 0 && (
@@ -299,10 +265,8 @@ export function SourcesModal({
             </div>
           )}
 
-          {/* TAB: LOCAL */}
           {tab === "local" && (
             <div className="p-4 space-y-3">
-              {/* Drop zone */}
               <div
                 onDrop={(e) => { e.preventDefault(); setIsDragging(false); handleFiles(e.dataTransfer.files); }}
                 onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
@@ -325,7 +289,6 @@ export function SourcesModal({
                 <p className="text-[10px] text-gray-400 mt-0.5">Solo para este chat · Max 50MB</p>
               </div>
 
-              {/* Uploads en progreso */}
               {pendingUploads.map((u, i) => (
                 <div key={i} className="flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-100 bg-gray-50">
                   <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center shrink-0">
@@ -349,7 +312,6 @@ export function SourcesModal({
                 </div>
               ))}
 
-              {/* Docs locales ya subidos */}
               {localDocs.length === 0 && pendingUploads.length === 0 && (
                 <p className="text-center text-xs text-gray-400 py-4">
                   Aún no hay archivos en este chat
@@ -392,7 +354,6 @@ export function SourcesModal({
           )}
         </div>
 
-        {/* Footer */}
         <div className="border-t border-gray-100 px-6 py-4 flex items-center justify-between">
           <p className="text-xs text-gray-400">
             {totalSelected === 0
