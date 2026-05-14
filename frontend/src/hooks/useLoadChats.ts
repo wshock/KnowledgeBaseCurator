@@ -10,7 +10,6 @@ export function useLoadChats() {
   const setChats = useDashboardStore((state) => state.setChats);
 
   useEffect(() => {
-    // Solo corre cuando el token esté disponible
     if (!token) return;
 
     apiGetChats(token)
@@ -26,5 +25,5 @@ export function useLoadChats() {
         setChats(mapped);
       })
       .catch(console.error);
-  }, [token]); // ← se vuelve a ejecutar cada vez que el token cambia
+  }, [token]); 
 }
