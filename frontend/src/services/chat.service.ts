@@ -1,11 +1,4 @@
-/**
- * chat.service.ts
- * Toda la comunicación con los endpoints de chats y mensajes del backend.
- */
-
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
-
-// ─── Tipos que devuelve el backend ───────────────────────────────────────────
 
 export interface BackendChat {
   id: number;
@@ -29,8 +22,6 @@ export interface MessagePairResponse {
   assistant_message: BackendMessage;
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
 function authHeaders(token: string) {
   return {
     "Content-Type": "application/json",
@@ -45,8 +36,6 @@ async function handleResponse<T>(res: Response): Promise<T> {
   }
   return res.json();
 }
-
-// ─── Chats ───────────────────────────────────────────────────────────────────
 
 export async function apiGetChats(token: string): Promise<BackendChat[]> {
   const res = await fetch(`${API_BASE_URL}/chats/`, {
@@ -83,8 +72,6 @@ export async function apiDeleteChat(token: string, chatId: number): Promise<void
     throw new Error(err.detail ?? `Error ${res.status}`);
   }
 }
-
-// ─── Mensajes ─────────────────────────────────────────────────────────────────
 
 export async function apiGetMessages(token: string, chatId: number): Promise<BackendMessage[]> {
   const res = await fetch(`${API_BASE_URL}/chats/${chatId}/messages/`, {

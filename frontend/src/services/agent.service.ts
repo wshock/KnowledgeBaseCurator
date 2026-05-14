@@ -1,14 +1,5 @@
-/**
- * agentService.ts
- *
- * Aquí vive toda la lógica de comunicación con el agente de IA.
- *
- * HOY: usa simulación (MOCK_MODE = true)
- * MAÑANA: cambia MOCK_MODE a false y pon la URL real de tu backend
- */
-
-const MOCK_MODE = true; // ← Cambia a false cuando conectes el backend
-const AGENT_API_URL = "https://tu-backend.com/api/agent"; // ← Tu endpoint real
+const MOCK_MODE = true; 
+const AGENT_API_URL = "http://localhost:8000/api/v1/agent";
 
 const MOCK_RESPONSES = [
   "¡Claro! Puedo ayudarte a crear un plan de estudio personalizado. ¿Qué materia o tema te gustaría trabajar?",
@@ -32,7 +23,6 @@ export async function sendMessageToAgent(
   request: AgentRequest
 ): Promise<AgentResponse> {
   if (MOCK_MODE) {
-    // Simula delay de red (entre 1 y 2 segundos)
     await new Promise((res) =>
       setTimeout(res, 1000 + Math.random() * 1000)
     );
@@ -41,12 +31,10 @@ export async function sendMessageToAgent(
     return { content: random };
   }
 
-  // ─── PRODUCCIÓN: reemplaza esto con tu lógica real ───────────────────────
   const response = await fetch(AGENT_API_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      // Authorization: `Bearer ${token}`, // si tu backend requiere auth
     },
     body: JSON.stringify({
       message: request.message,
@@ -61,7 +49,5 @@ export async function sendMessageToAgent(
 
   const data = await response.json();
 
-  // Ajusta esto según la forma exacta que devuelva tu backend:
   return { content: data.content ?? data.message ?? data.response };
-  // ─────────────────────────────────────────────────────────────────────────
 }

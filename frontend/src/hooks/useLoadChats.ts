@@ -20,11 +20,10 @@ export function useLoadChats() {
           title: c.title,
           createdAt: new Date(c.created_at),
           updatedAt: new Date(c.updated_at),
-          // Dejamos messages vacío — setChats hará merge con lo que ya hay en el store
           messages: [],
         }));
         setChats(mapped);
       })
       .catch(console.error);
-  }, [token]);
+  }, [token]); 
 }
