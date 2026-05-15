@@ -23,10 +23,10 @@ export const AuthHeader: React.FC<AuthHeaderProps> = ({
         aria-label="Global"
         className="mx-auto flex max-w-7xl items-center justify-between p-4 lg:px-8"
       >
-        <div className="flex items-center lg:flex-1 gap-x-3">
+        <Link href="/" className="flex items-center lg:flex-1 gap-x-3">
           <RiGraduationCapLine className="h-8 w-auto text-white p-2 rounded bg-blue-950" />
           <h1 className="text-lg font-bold text-indigo-900">{title}</h1>
-        </div>
+        </Link>
         {headerText && linkText && (
           <div className="flex items-center gap-x-6">
             <h3 className="text-sm font-normal text-gray-400">
