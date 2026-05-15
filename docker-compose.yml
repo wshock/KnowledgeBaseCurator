@@ -1,14 +1,24 @@
 services:
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_BASE_URL=http://backend:8000/api/v1
+    depends_on:
+      - backend
+    restart: unless-stopped
+
   backend:
-    build: ./src
+    build: ./backend/src
     ports:
       - "8000:8000"
     volumes:
-      - ./src:/app
-      - ./scripts:/app/scripts
-      - ./data:/app/data
+      - ./backend/src:/app
+      - ./backend/scripts:/app/scripts
+      - ./backend/data:/app/data
     env_file:
-      - .env
+      - ./backend/.env
     environment:
       - CHROMA_HOST=chromadb
       - CHROMA_PORT=8000
@@ -22,7 +32,7 @@ services:
   chromadb:
     image: chromadb/chroma:0.5.23
     ports:
-      - "8001:8000" # Accesible desde el host en :8001
+      - "8001:8000"
     volumes:
       - chroma_data:/chroma/chroma
     healthcheck:
@@ -46,5 +56,5 @@ services:
       - postgres_data:/var/lib/postgresql/data
 
 volumes:
-  chroma_data: # Persistencia de ChromaDB entre reinicios
+  chroma_data:
   postgres_data:
