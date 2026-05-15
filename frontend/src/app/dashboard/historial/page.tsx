@@ -33,18 +33,14 @@ export default function HistorialPage() {
     <div className="h-screen bg-[#f0f5ff] flex flex-col p-8 overflow-hidden">
       <div className="max-w-4xl mx-auto w-full flex flex-col flex-1 min-h-0">
 
-        {/* Título — fijo */}
         <div className="mb-6 shrink-0">
           <h1 className="text-2xl font-bold text-[#1a2b4a]">Historial</h1>
           <p className="text-sm text-gray-400 mt-1">Todos tus chats y conversaciones anteriores.</p>
         </div>
 
         <div className="flex gap-6 flex-1 min-h-0">
-
-          {/* Columna principal */}
           <div className="flex-1 min-w-0 flex flex-col min-h-0">
 
-            {/* Búsqueda + filtros — fijo */}
             <div className="flex items-center gap-3 mb-4 shrink-0">
               <div className="flex-1 relative">
                 <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -73,7 +69,6 @@ export default function HistorialPage() {
               </div>
             </div>
 
-            {/* Lista con scroll */}
             {filteredChats.length === 0 ? (
               <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
                 <FiMessageSquare className="h-8 w-8 text-gray-300 mx-auto mb-3" />
@@ -134,7 +129,6 @@ export default function HistorialPage() {
             )}
           </div>
 
-          {/* Card lateral — fijo */}
           <div className="w-60 shrink-0 space-y-4">
             <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">

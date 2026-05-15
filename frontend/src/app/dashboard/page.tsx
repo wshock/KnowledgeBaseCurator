@@ -53,7 +53,7 @@ export default function Dashboard() {
   const greeting = hour < 12 ? "Buenos días" : hour < 18 ? "Buenas tardes" : "Buenas noches";
 
   return (
-    <div className="h-screen flex flex-col bg-[#f0f5ff]">
+    <div className="min-h-screen flex flex-col bg-[#f0f5ff] overflow-x-hidden">
       <div className="flex items-center justify-end px-8 py-4" />
       <div className="flex-1 flex flex-col items-center justify-center px-6 pb-16">
         <div className="flex items-center gap-2 mb-2">
