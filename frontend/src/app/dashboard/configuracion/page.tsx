@@ -3,10 +3,8 @@
 import { useAuthStore } from "@/src/store/auth.store";
 import { FiUser, FiMail, FiSun, FiShield, FiChevronRight } from "react-icons/fi";
 
-// ─── Feature flags ────────────────────────────────────────────────────────────
-// Cambia a true cuando estés listo para implementar cada feature
+// Cambia a true cuando se quiera hacer el modo oscuro
 const FEATURE_DARK_MODE = false;
-// ─────────────────────────────────────────────────────────────────────────────
 
 export default function ConfiguracionPage() {
   const user = useAuthStore((state) => state.user);
@@ -22,7 +20,6 @@ export default function ConfiguracionPage() {
 
         <div className="space-y-5">
 
-          {/* PERFIL */}
           <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-50">
               <h2 className="text-sm font-semibold text-[#1a2b4a] flex items-center gap-2">
@@ -64,7 +61,6 @@ export default function ConfiguracionPage() {
             </div>
           </section>
 
-          {/* APARIENCIA — solo visible si FEATURE_DARK_MODE está activo */}
           {FEATURE_DARK_MODE && (
             <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-50">
@@ -94,7 +90,6 @@ export default function ConfiguracionPage() {
             </section>
           )}
 
-          {/* SEGURIDAD */}
           <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-50">
               <h2 className="text-sm font-semibold text-[#1a2b4a] flex items-center gap-2">

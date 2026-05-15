@@ -6,22 +6,20 @@ import { useAuthStore } from "@/src/store/auth.store";
 import { ChatInput } from "@/src/components/dashboard/chat/ChatInput";
 import { apiSendMessage, apiGetMessages } from "@/src/services/chat.service";
 import { useEffect, useRef, useCallback } from "react";
-import { RiGraduationCapLine, RiSparklingLine } from "react-icons/ri";
+import { RiGraduationCapLine } from "react-icons/ri";
 
 export default function ChatPage() {
-  const params = useParams();
+  const params  = useParams();
   const localId = params.id as string;
 
-  const chat = useDashboardStore((state) => state.chats.find((c) => c.id === localId));
-  const updateChat = useDashboardStore((state) => state.updateChat);
-  const addAgentMessage = useDashboardStore((state) => state.addAgentMessage);
-  const setAgentTyping = useDashboardStore((state) => state.setAgentTyping);
-  const isAgentTyping = useDashboardStore((state) => state.isAgentTyping);
-  const token = useAuthStore((state) => state.token);
-
+  const chat           = useDashboardStore((s) => s.chats.find((c) => c.id === localId));
+  const updateChat     = useDashboardStore((s) => s.updateChat);
+  const addAgentMessage = useDashboardStore((s) => s.addAgentMessage);
+  const setAgentTyping  = useDashboardStore((s) => s.setAgentTyping);
+  const isAgentTyping   = useDashboardStore((s) => s.isAgentTyping);
+  const token = useAuthStore((s) => s.token);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
-  // Carga mensajes del backend si el chat no tiene mensajes aún
   useEffect(() => {
     if (!chat || !token || chat.messages.length > 0) return;
     apiGetMessages(token, chat.backendId).then((msgs) => {
@@ -42,28 +40,21 @@ export default function ChatPage() {
   const handleSendMessage = useCallback(async (message: string) => {
     if (!message.trim() || !chat || isAgentTyping) return;
 
-    // Agrega mensaje del usuario localmente
     const userMessage = {
       id: Date.now().toString(),
       role: "user" as const,
       content: message,
       timestamp: new Date(),
     };
-    updateChat(localId, {
-      messages: [...chat.messages, userMessage],
-      updatedAt: new Date(),
-    });
-
+    updateChat(localId, { messages: [...chat.messages, userMessage], updatedAt: new Date() });
     setAgentTyping(true);
 
     try {
-      const currentToken = token || (typeof window !== "undefined" ? localStorage.getItem("authToken") : "");
+      const currentToken = token ?? (typeof window !== "undefined" ? localStorage.getItem("authToken") : "");
       if (!currentToken) {
         addAgentMessage(localId, "Error: No se encontró un token válido. Inicia sesión de nuevo.");
         return;
       }
-      
-      // Envía al backend — incluye el agente
       const pair = await apiSendMessage(currentToken, chat.backendId, message);
       addAgentMessage(localId, pair.assistant_message.content);
     } catch {
@@ -82,30 +73,34 @@ export default function ChatPage() {
   return (
     <div className="flex flex-col h-screen bg-[#f0f5ff]">
 
-      {/* Mensajes */}
-      <div className="flex-1 overflow-y-auto px-6 py-6">
-        <div className="space-y-5 max-w-3xl mx-auto">
+      <div className="flex-1 overflow-y-auto px-3 md:px-6 py-4 md:py-6">
+        <div className="space-y-4 md:space-y-5 max-w-3xl mx-auto">
           {chat.messages.map((msg) => (
-            <div key={msg.id} className={`flex items-end gap-3 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}>
+            <div
+              key={msg.id}
+              className={`flex items-end gap-2 md:gap-3 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}
+            >
               {msg.role === "assistant" && (
-                <div className="w-7 h-7 rounded-full bg-blue-950 flex items-center justify-center shrink-0 mb-0.5">
-                  <RiGraduationCapLine className="h-3.5 w-3.5 text-white" />
+                <div className="w-6 h-6 md:w-7 md:h-7 rounded-full bg-blue-950 flex items-center justify-center shrink-0 mb-0.5">
+                  <RiGraduationCapLine className="h-3 w-3 md:h-3.5 md:w-3.5 text-white" />
                 </div>
               )}
-              <div className={`max-w-[72%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                msg.role === "user"
-                  ? "bg-[#1a2b4a] text-white rounded-br-sm shadow-md"
-                  : "bg-white border border-gray-100 text-gray-800 rounded-bl-sm shadow-sm"
-              }`}>
+              <div
+                className={`max-w-[85%] md:max-w-[72%] rounded-2xl px-3 py-2.5 md:px-4 md:py-3 text-sm leading-relaxed ${
+                  msg.role === "user"
+                    ? "bg-[#1a2b4a] text-white rounded-br-sm shadow-md"
+                    : "bg-white border border-gray-100 text-gray-800 rounded-bl-sm shadow-sm"
+                }`}
+              >
                 <p className="whitespace-pre-wrap">{msg.content}</p>
               </div>
             </div>
           ))}
 
           {isAgentTyping && (
-            <div className="flex items-end gap-3">
-              <div className="w-7 h-7 rounded-full bg-blue-950 flex items-center justify-center shrink-0">
-                <RiGraduationCapLine className="h-3.5 w-3.5 text-white" />
+            <div className="flex items-end gap-2 md:gap-3">
+              <div className="w-6 h-6 md:w-7 md:h-7 rounded-full bg-blue-950 flex items-center justify-center shrink-0">
+                <RiGraduationCapLine className="h-3 w-3 md:h-3.5 md:w-3.5 text-white" />
               </div>
               <div className="bg-white border border-gray-100 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm">
                 <div className="flex items-center gap-1.5">
@@ -120,13 +115,14 @@ export default function ChatPage() {
         </div>
       </div>
 
-      {/* Input */}
-      <div className="border-t border-gray-100 px-6 pb-8">
+      <div className="border-t border-gray-100 px-3 md:px-6 pt-3 pb-4 md:pb-8 bg-[#f0f5ff]">
         <div className="max-w-3xl mx-auto">
           <ChatInput
             onSend={handleSendMessage}
             disabled={isAgentTyping}
-            placeholder={isAgentTyping ? "SchoolAI está respondiendo..." : "Pregunta a SchoolAI sobre plan de estudio..."}
+            placeholder={isAgentTyping ? "SchoolAI está respondiendo..." : "Pregunta a SchoolAI..."}
+            chatId={chat.backendId}
+            token={token ?? ""}
           />
         </div>
       </div>
