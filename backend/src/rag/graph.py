@@ -51,6 +51,7 @@ class RAGState(TypedDict):
     question: str
     base_context: list[str]         # Chunks recuperados de libros base
     user_context: list[str]         # Chunks recuperados de documentos del usuario
+    user_files: list[str]           # Lista de nombres de archivos a consultar
     suggestions: list[dict]         # Lista de CurationSuggestion (solo en modo curate)
     analysis_error: Optional[str]   # Error ocurrido durante el análisis (si hubo)
     answer: str
@@ -136,15 +137,16 @@ def detect_intent(question: str) -> str:
 # Helpers de recuperación
 # ---------------------------------------------------------------------------
 
-def _retrieve_by_type(question: str, document_type: str, k: int) -> list[str]:
+def _retrieve_by_type(question: str, document_type: str, k: int, user_files: list[str] = None) -> list[str]:
     
     """
-    Recupera chunks de ChromaDB filtrando por document_type.
+    Recupera chunks de ChromaDB filtrando por document_type y opcionalmente source.
  
     Args:
         question: Pregunta o tema a buscar.
         document_type: "base_knowledge" o "user_upload".
         k: Número de chunks a recuperar.
+        user_files: Lista de nombres de archivo a filtrar (solo para user_upload).
  
     Returns:
         Lista de strings con el contenido de los chunks.
@@ -153,13 +155,31 @@ def _retrieve_by_type(question: str, document_type: str, k: int) -> list[str]:
     """
     try:
         vectorstore = get_vectorstore()
+        
+        filter_dict = {"document_type": document_type}
+        if document_type == "user_upload" and user_files:
+            if len(user_files) == 1:
+                filter_dict = {
+                    "$and": [
+                        {"document_type": document_type},
+                        {"source": user_files[0]}
+                    ]
+                }
+            else:
+                filter_dict = {
+                    "$and": [
+                        {"document_type": document_type},
+                        {"source": {"$in": user_files}}
+                    ]
+                }
+
         retriever = vectorstore.as_retriever(
             search_type="mmr",
             search_kwargs={
                 "k": k,
                 "fetch_k": settings.RETRIEVER_FETCH_K,
                 "lambda_mult": settings.RETRIEVER_MMR_LAMBDA,
-                "filter": {"document_type": document_type},
+                "filter": filter_dict,
             },
         )
         docs = retriever.invoke(question)
@@ -209,6 +229,7 @@ def retrieve(state: RAGState) -> dict:
         question,
         "user_upload",
         settings.RETRIEVER_K,
+        user_files=state.get("user_files", [])
     )
 
     return {
