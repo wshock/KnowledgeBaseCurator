@@ -1,59 +1,116 @@
 """
 Definición de patrones de validación.
+
+IMPORTANTE:
+- Los patrones deben minimizar falsos positivos académicos.
+- NO bloquear términos educativos, históricos o científicos por sí solos.
+- Solo bloquear intenciones claramente peligrosas, ofensivas o maliciosas.
 """
 
-# Patrones para lenguaje ofensivo
+# -------------------------------------------------------------------
+# Lenguaje ofensivo REAL
+# Evitamos términos médicos o académicos.
+# -------------------------------------------------------------------
+
 PROFANITY_PATTERNS = [
+    # Español
     r"\bmierda\b",
     r"\bputa\b",
-    r"\bjoder\b",
-    r"\bcoño\b",
-    r"\bpolla\b",
-    r"\bcabrón\b",
+    r"\bcabr[oó]n\b",
     r"\bzorra\b",
-    r"\bpene\b",
-    r"\bvagina\b",
-    r"\bsexo\b",
-    r"\bporno\b",
+    r"\bpendej[o|a]\b",
+    r"\bidiota\b",
+
+    # Inglés
     r"\bfuck\b",
     r"\bshit\b",
-    r"\bass\b",
     r"\bbitch\b",
-    r"\bdick\b",
-    r"\bpussy\b",
+    r"\basshole\b",
+    r"\bmotherfucker\b",
 ]
 
-# Patrones para solicitudes peligrosas
+# -------------------------------------------------------------------
+# Solicitudes peligrosas ESPECÍFICAS
+# No usar frases genéricas tipo "cómo crear".
+# -------------------------------------------------------------------
+
 DANGEROUS_REQUEST_PATTERNS = [
-    r"\bhackear\s+(cuentas?|servidores?|wifi)\b",
+
+    # Hacking / acceso ilegal
+    r"\bhackear\s+(wifi|cuentas?|servidores?|correos?)\b",
+    r"\brobar\s+contraseñas?\b",
+    r"\bphishing\b",
+    r"\bkeylogger\b",
     r"\bcrear\s+malware\b",
+    r"\bdesarrollar\s+ransomware\b",
+
+    # Explosivos / armas
     r"\bfabricar\s+explosivos\b",
-    r"\brobar\s+contraseñas\b",
+    r"\bcrear\s+una?\s+bomba\b",
+    r"\bmanual\s+para\s+explosivos\b",
+
+    # Terrorismo / violencia explícita
+    r"\bc[oó]mo\s+unirme\s+a\s+(terroristas?|isis|al-qaeda)\b",
+    r"\bc[oó]mo\s+atacar\s+a\s+personas\b",
+
+    # Fraude
+    r"\bclonar\s+tarjetas\b",
+    r"\bfraude\s+bancario\b",
 ]
 
-# Patrones para intenciones de odio
+# -------------------------------------------------------------------
+# Contenido de odio SOLO cuando implica intención dañina.
+# NO bloquear palabras históricas por sí solas.
+# -------------------------------------------------------------------
+
 HATEFUL_INTENT_PATTERNS = [
-    r"\bodio\b",
-    r"\binferior\b",
-    r"\bsuperior\b",
-    r"\braza\b",
-    r"\betnia\b",
-    r"\bdiscriminación\b",
-    r"\bracista\b",
-    r"\bnazi\b",
-    r"\bfascista\b",
-    r"\bterrorista\b",
+
+    # Superioridad racial explícita
+    r"\bla\s+raza\s+\w+\s+es\s+superior\b",
+    r"\bodio\s+a\s+los\s+\w+\b",
+    r"\bexpulsar\s+a\s+los\s+\w+\b",
+
+    # Incitación
+    r"\bviolencia\s+contra\s+\w+\b",
+    r"\beliminar\s+a\s+los\s+\w+\b",
+
+    # Glorificación extremista
+    r"\bapoyo\s+al\s+nazismo\b",
+    r"\bglorificar\s+terroristas\b",
 ]
 
+# -------------------------------------------------------------------
 # Contextos académicos seguros
+# Permiten análisis históricos, educativos y científicos.
+# -------------------------------------------------------------------
+
 SAFE_ACADEMIC_CONTEXTS = [
+
+    # Explicación / análisis
     r"\bexplica\b",
     r"\banaliza\b",
-    r"\bhistoria\b",
-    r"\bqué es\b",
-    r"\bpor qué\b",
-    r"\bdefinición\b",
-    r"\bejemplo\b",
-    r"\bcomparación\b",
-    r"\banálisis\b",
+    r"\bdescribe\b",
+    r"\bdefine\b",
+    r"\bresumen\b",
+
+    # Educación / investigación
+    r"\binvestigaci[oó]n\b",
+    r"\bcontexto\s+hist[oó]rico\b",
+    r"\ban[aá]lisis\s+acad[eé]mico\b",
+
+    # Preguntas educativas
+    r"\bqu[eé]\s+es\b",
+    r"\bpor\s+qu[eé]\b",
+    r"\bc[oó]mo\s+funciona\b",
+
+    # Historia / política
+    r"\bhistoria\s+del\s+nazismo\b",
+    r"\ban[aá]lisis\s+del\s+terrorismo\b",
+    r"\bfascismo\b",
+    r"\bsegunda\s+guerra\s+mundial\b",
+
+    # Tecnología legítima
+    r"\bc[oó]mo\s+crear\s+una\s+api\b",
+    r"\bc[oó]mo\s+hacer\s+embeddings\b",
+    r"\bmachine\s+learning\b",
 ]

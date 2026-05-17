@@ -2,11 +2,11 @@
 Módulo para validación de outputs.
 """
 
+from typing import Tuple, Optional
 from .regex_utils import normalize_text, contains_pattern
 from .patterns import PROFANITY_PATTERNS, DANGEROUS_REQUEST_PATTERNS, HATEFUL_INTENT_PATTERNS
-from .schemas import ValidationResult
 
-def validate_output(model_output: str) -> ValidationResult:
+def validate_output(model_output: str) -> Tuple[bool, str, Optional[str]]:
     """
     Valida el output generado por el modelo.
 
@@ -14,46 +14,50 @@ def validate_output(model_output: str) -> ValidationResult:
         model_output: Texto generado por el modelo.
 
     Returns:
-        ValidationResult con el resultado de la validación.
+        Tuple (is_valid, validated_text, error_message):
+        - is_valid: True si el output pasa la validación
+        - validated_text: Output validado y limpio
+        - error_message: Mensaje de error si falla la validación, None si es válido
     """
     normalized_output = normalize_text(model_output)
 
     if not normalized_output:
-        return ValidationResult(
-            is_valid=False,
-            validated_text=model_output,
-            error_message="La respuesta no puede estar vacía."
+        return (
+            False,
+            model_output,
+            "La respuesta no puede estar vacía."
         )
 
     if len(normalized_output) > 10000:
-        return ValidationResult(
-            is_valid=False,
-            validated_text=model_output,
-            error_message="La respuesta es demasiado larga (máximo 10000 caracteres)."
+        return (
+            False,
+            model_output,
+            "La respuesta es demasiado larga (máximo 10000 caracteres)."
         )
 
     if contains_pattern(normalized_output, PROFANITY_PATTERNS):
-        return ValidationResult(
-            is_valid=False,
-            validated_text=model_output,
-            error_message="La respuesta contiene lenguaje inapropiado."
+        return (
+            False,
+            model_output,
+            "La respuesta contiene lenguaje inapropiado."
         )
 
     if contains_pattern(normalized_output, DANGEROUS_REQUEST_PATTERNS):
-        return ValidationResult(
-            is_valid=False,
-            validated_text=model_output,
-            error_message="La respuesta contiene instrucciones peligrosas."
+        return (
+            False,
+            model_output,
+            "La respuesta contiene instrucciones peligrosas."
         )
 
     if contains_pattern(normalized_output, HATEFUL_INTENT_PATTERNS):
-        return ValidationResult(
-            is_valid=False,
-            validated_text=model_output,
-            error_message="La respuesta contiene contenido de odio."
+        return (
+            False,
+            model_output,
+            "La respuesta contiene contenido de odio."
         )
 
-    return ValidationResult(
-        is_valid=True,
-        validated_text=normalized_output
+    return (
+        True,
+        normalized_output,
+        None
     )
