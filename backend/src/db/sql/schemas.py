@@ -22,6 +22,7 @@ class ChatResponse(BaseModel):
 class MessageCreate(BaseModel):
     content: str = Field(..., min_length=1)
     sender: str = Field(..., pattern="^(user|system|assistant)$")
+    sources: list[str] | None = None
     
 class MessageResponse(BaseModel):
     id: int
