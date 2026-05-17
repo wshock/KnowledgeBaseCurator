@@ -105,7 +105,6 @@ export default function SubirArchivoPage() {
 
           <div className="flex-1 space-y-5">
 
-            {/* Drop zone */}
             <div
               onDrop={onDrop}
               onDragOver={onDragOver}
@@ -136,7 +135,6 @@ export default function SubirArchivoPage() {
               </button>
             </div>
 
-            {/* Lista archivos */}
             {files.length > 0 && (
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm divide-y divide-gray-50">
                 <div className="px-5 py-3 flex items-center justify-between">
@@ -180,7 +178,6 @@ export default function SubirArchivoPage() {
             )}
           </div>
 
-          {/* Card lateral */}
           <div className="w-64 shrink-0 space-y-4">
             <div className="bg-[#1a2b4a] rounded-2xl p-5 text-white">
               <p className="text-xs font-semibold uppercase tracking-widest text-blue-300 mb-3">Formatos aceptados</p>

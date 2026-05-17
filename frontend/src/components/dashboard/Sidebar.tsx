@@ -1,7 +1,10 @@
 "use client";
 
 import { RiGraduationCapLine } from "react-icons/ri";
-import { FiClock, FiFile, FiSettings, FiHelpCircle, FiLogOut, FiEdit2, FiTrash2 } from "react-icons/fi";
+import {
+  FiClock, FiFile, FiSettings, FiHelpCircle, FiLogOut,
+  FiEdit2, FiTrash2, FiHome,
+} from "react-icons/fi";
 import { AiOutlineFolderAdd } from "react-icons/ai";
 import { IoAddOutline } from "react-icons/io5";
 import { GoSidebarCollapse, GoSidebarExpand } from "react-icons/go";
@@ -13,68 +16,63 @@ import { usePathname, useRouter } from "next/navigation";
 import { LogoutModal } from "./LogoutModal";
 import { useState, useRef, useEffect } from "react";
 import { apiDeleteChat, apiUpdateChat } from "@/src/services/chat.service";
+import { SoftServeLogo } from "@/src/components/ui/SoftServeLogo";
 
 interface SidebarProps {
   collapsed: boolean;
   setCollapsed: (v: boolean) => void;
 }
 
+const NAV_ITEMS = [
+  { name: "Inicio",        path: "/dashboard",               icon: FiHome,            iconSize: "h-4 w-4" },
+  { name: "Historial",     path: "/dashboard/historial",     icon: FiClock,           iconSize: "h-4 w-4" },
+  { name: "Subir archivo", path: "/dashboard/subir-archivo", icon: AiOutlineFolderAdd,iconSize: "h-4 w-4" },
+];
+const NAV_BOTTOM = [
+  { name: "Configuración",   path: "/dashboard/configuracion", icon: FiSettings,   iconSize: "h-4 w-4" },
+  { name: "Centro de ayuda", path: "/dashboard/centro-ayuda",  icon: FiHelpCircle, iconSize: "h-4 w-4" },
+];
+
 export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
-  const router = useRouter();
+  const router   = useRouter();
   const pathname = usePathname();
-  const chats = useDashboardStore((state) => state.chats);
-  const deleteChat = useDashboardStore((state) => state.deleteChat);
-  const updateChat = useDashboardStore((state) => state.updateChat);
-  const logout = useAuthStore((state) => state.logout);
-  const token = useAuthStore((state) => state.token);
+  const chats      = useDashboardStore((s) => s.chats);
+  const deleteChat = useDashboardStore((s) => s.deleteChat);
+  const updateChat = useDashboardStore((s) => s.updateChat);
+  const logout     = useAuthStore((s) => s.logout);
+  const token      = useAuthStore((s) => s.token);
+
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [openMenuId,   setOpenMenuId]   = useState<string | null>(null);
+  const [editingId,    setEditingId]    = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const filteredChats = chats.filter((chat) => chat.messages.length > 0);
-  const navigation = [
-    { name: "Historial", path: "/dashboard/historial", icon: FiClock, iconSize: "h-4 w-4" },
-    { name: "Subir archivo", path: "/dashboard/subir-archivo", icon: AiOutlineFolderAdd, iconSize: "h-4 w-4" },
-  ];
-  const navigationBottom = [
-    { name: "Configuracion", path: "/dashboard/configuracion", icon: FiSettings, iconSize: "h-4 w-4" },
-    { name: "Centro de ayuda", path: "/dashboard/centro-ayuda", icon: FiHelpCircle, iconSize: "h-4 w-4" },
-  ];
+  const filteredChats = chats.filter((c) => c.messages.length > 0);
 
   const handleLogoutConfirm = () => { logout(); setShowLogoutModal(false); router.push("/"); };
 
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
+    const handler = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpenMenuId(null);
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
   }, []);
-
-  const handleRename = (chatId: string, currentTitle: string) => {
-    setEditingId(chatId); setEditingTitle(currentTitle); setOpenMenuId(null);
-  };
 
   const handleRenameSubmit = async (chatId: string) => {
     if (!editingTitle.trim()) { setEditingId(null); return; }
     const chat = chats.find((c) => c.id === chatId);
     if (chat) {
-      try {
-        await apiUpdateChat(token, chat.backendId, editingTitle.trim());
-        updateChat(chatId, { title: editingTitle.trim() });
-      } catch (err) { console.error("Error al renombrar:", err); }
+      try { await apiUpdateChat(token, chat.backendId, editingTitle.trim()); updateChat(chatId, { title: editingTitle.trim() }); }
+      catch (err) { console.error("Error al renombrar:", err); }
     }
     setEditingId(null); setEditingTitle("");
   };
 
   const handleDelete = async (chatId: string) => {
     const chat = chats.find((c) => c.id === chatId);
-    if (chat) {
-      try { await apiDeleteChat(token, chat.backendId); }
-      catch (err) { console.error("Error al eliminar:", err); }
-    }
+    if (chat) { try { await apiDeleteChat(token, chat.backendId); } catch (err) { console.error(err); } }
     deleteChat(chatId); setOpenMenuId(null);
     if (pathname === `/dashboard/chat/${chatId}`) router.push("/dashboard");
   };
@@ -82,7 +80,8 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
   return (
     <>
       <LogoutModal isOpen={showLogoutModal} onConfirm={handleLogoutConfirm} onCancel={() => setShowLogoutModal(false)} />
-      <div className={`fixed left-0 top-0 h-screen bg-white border-r border-gray-200 flex flex-col transition-all duration-300 ease-in-out ${collapsed ? "w-16" : "w-52"}`}>
+
+      <div className={`hidden md:flex fixed left-0 top-0 h-screen bg-white border-r border-gray-200 flex-col transition-all duration-300 ease-in-out z-30 ${collapsed ? "w-16" : "w-52"}`}>
 
         <div className={`px-3 py-5 flex items-center ${collapsed ? "justify-center" : "justify-between gap-2"}`}>
           {collapsed ? (
@@ -112,13 +111,13 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
             </button>
           ) : (
             <button onClick={() => router.push("/dashboard")} className="w-full flex items-center gap-2 bg-blue-950 hover:bg-blue-900 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors">
-              <IoAddOutline className="h-4 w-4 shrink-0" />Nuevo chat
+              <IoAddOutline className="h-4 w-4 shrink-0" /> Nuevo chat
             </button>
           )}
         </div>
 
         <nav className={`space-y-0.5 ${collapsed ? "px-2" : "px-3"}`}>
-          {navigation.map((item) => {
+          {NAV_ITEMS.filter((i) => i.path !== "/dashboard").map((item) => {
             const Icon = item.icon; const isActive = pathname === item.path;
             return collapsed ? (
               <Link key={item.path} href={item.path} title={item.name} className={`flex items-center justify-center w-10 h-10 mx-auto rounded-lg transition-colors ${isActive ? "bg-indigo-50 text-indigo-900" : "text-gray-500 hover:bg-gray-100 hover:text-gray-800"}`}>
@@ -159,11 +158,11 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
                         </button>
                         {isMenuOpen && (
                           <div className="absolute right-2 top-8 z-20 bg-white border border-gray-100 rounded-xl shadow-lg py-1 w-36">
-                            <button onClick={() => handleRename(chat.id, chat.title)} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-600 hover:bg-gray-50 transition-colors">
-                              <FiEdit2 className="h-3.5 w-3.5" />Renombrar
+                            <button onClick={() => { setEditingId(chat.id); setEditingTitle(chat.title); setOpenMenuId(null); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-600 hover:bg-gray-50 transition-colors">
+                              <FiEdit2 className="h-3.5 w-3.5" /> Renombrar
                             </button>
                             <button onClick={() => handleDelete(chat.id)} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-500 hover:bg-red-50 transition-colors">
-                              <FiTrash2 className="h-3.5 w-3.5" />Eliminar
+                              <FiTrash2 className="h-3.5 w-3.5" /> Eliminar
                             </button>
                           </div>
                         )}
@@ -178,8 +177,8 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
 
         {collapsed && <div className="flex-1" />}
 
-        <div className={`pb-3 mt-2 border-t border-gray-100 pt-3 space-y-0.5 ${collapsed ? "px-2" : "px-3"}`}>
-          {navigationBottom.map((item) => {
+        <div className={`mt-2 border-t border-gray-100 pt-3 pb-2 space-y-0.5 ${collapsed ? "px-2" : "px-3"}`}>
+          {NAV_BOTTOM.map((item) => {
             const Icon = item.icon; const isActive = pathname === item.path;
             return collapsed ? (
               <Link key={item.path} href={item.path} title={item.name} className={`flex items-center justify-center w-10 h-10 mx-auto rounded-lg transition-colors ${isActive ? "bg-indigo-50 text-indigo-900" : "text-gray-500 hover:bg-gray-100 hover:text-gray-800"}`}>
@@ -192,16 +191,68 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
             );
           })}
           {collapsed ? (
-            <button onClick={() => setShowLogoutModal(true)} title="Cerrar sesion" className="flex items-center justify-center w-10 h-10 mx-auto rounded-lg text-white bg-blue-950 hover:bg-blue-900 transition-colors">
+            <button onClick={() => setShowLogoutModal(true)} title="Cerrar sesión" className="flex items-center justify-center w-10 h-10 mx-auto rounded-lg text-white bg-blue-950 hover:bg-blue-900 transition-colors">
               <FiLogOut className="h-4 w-4" />
             </button>
           ) : (
             <button onClick={() => setShowLogoutModal(true)} className="w-full bg-blue-950 text-white hover:bg-blue-900 flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors">
-              <FiLogOut className="h-4 w-4 shrink-0" /><span>Cerrar sesion</span>
+              <FiLogOut className="h-4 w-4 shrink-0" /><span>Cerrar sesión</span>
             </button>
           )}
         </div>
+
+        {/*<div className={`pb-4 pt-3 border-t border-gray-100 ${collapsed ? "flex justify-center px-2" : "px-3"}`}>
+          {collapsed ? (
+            <a
+              href="https://www.softserveinc.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="SoftServe"
+              className="w-10 h-10 flex items-center justify-center bg-gray-900 hover:bg-gray-800 rounded-lg transition-colors"
+            >
+              <SoftServeLogo size={18} />
+            </a>
+          ) : (
+            <a
+              href="https://www.softserveinc.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2.5 w-full px-2 py-2 rounded-lg bg-gray-900 hover:bg-gray-800 transition-colors group"
+            >
+              <div className="w-6 h-5 flex items-center justify-center shrink-0">
+                <SoftServeLogo size={22} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-white text-xs font-light leading-none">SoftServe</p>
+              </div>
+            </a>
+          )}
+        </div>*/}
+
       </div>
+
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-gray-200 flex items-center justify-around px-2 py-1">
+        {NAV_ITEMS.map((item) => {
+          const Icon = item.icon;
+          const isActive = pathname === item.path;
+          return (
+            <Link key={item.path} href={item.path}
+              className={`flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl transition-colors ${isActive ? "text-blue-950" : "text-gray-400"}`}>
+              <Icon className="h-5 w-5" />
+              <span className="text-[10px] font-medium truncate">{item.name}</span>
+            </Link>
+          );
+        })}
+        <button onClick={() => router.push("/dashboard")} className="flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl text-white bg-blue-950">
+          <IoAddOutline className="h-5 w-5" />
+          <span className="text-[10px] font-medium">Nuevo</span>
+        </button>
+        <Link href="/dashboard/configuracion"
+          className={`flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl transition-colors ${pathname === "/dashboard/configuracion" ? "text-blue-950" : "text-gray-400"}`}>
+          <FiSettings className="h-5 w-5" />
+          <span className="text-[10px] font-medium">Ajustes</span>
+        </Link>
+      </nav>
     </>
   );
 }

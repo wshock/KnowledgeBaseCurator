@@ -35,7 +35,7 @@ export default function Dashboard() {
 
       // 1. Crea el chat en el backend
       const backendChat = await apiCreateChat(currentToken, message.slice(0, 40));
-      // 2. Agrega al store con el backendId real
+      // 2. Agrega al store con el backendId
       const localId = addChatFromBackend(backendChat.id, backendChat.title, message);
       // 3. Navega al chat inmediatamente
       router.push(`/dashboard/chat/${localId}`);
@@ -53,7 +53,7 @@ export default function Dashboard() {
   const greeting = hour < 12 ? "Buenos días" : hour < 18 ? "Buenas tardes" : "Buenas noches";
 
   return (
-    <div className="h-screen flex flex-col bg-[#f0f5ff]">
+    <div className="min-h-screen flex flex-col bg-[#f0f5ff] overflow-x-hidden">
       <div className="flex items-center justify-end px-8 py-4" />
       <div className="flex-1 flex flex-col items-center justify-center px-6 pb-16">
         <div className="flex items-center gap-2 mb-2">
@@ -67,7 +67,7 @@ export default function Dashboard() {
           Pregúntame sobre planes de estudio, talleres o cualquier tema académico.
         </p>
         <div className="w-full max-w-2xl mb-8">
-          <ChatInput onSend={handleSendMessage} />
+          <ChatInput onSend={handleSendMessage} chatId={0} token={""} />
         </div>
         <div className="flex flex-wrap gap-2 justify-center max-w-2xl">
           {SUGGESTIONS.map((s) => (
