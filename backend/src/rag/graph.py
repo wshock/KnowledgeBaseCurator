@@ -24,6 +24,7 @@ from langchain_groq import ChatGroq
 from langchain_core.messages import HumanMessage
 from db.chroma_client import get_vectorstore
 from config import settings
+from rag.guardrails import validate_input, validate_output
 
 
 
@@ -467,10 +468,19 @@ def _build_curate_prompt(
 
 def generate(state: RAGState) -> dict:
     """
-    Nodo 3 — Generación final.
+    Nodo 3 — Generación final con guardrails.
     """
 
     try:
+        # ---------------------------------------------------
+        # Validar input con guardrails
+        # ---------------------------------------------------
+        is_input_valid, validated_question, input_error = validate_input(state["question"])
+        
+        if not is_input_valid:
+            error_answer = f"Tu mensaje no pudo ser procesado: {input_error}"
+            print(f"[guardrails] Input rechazado: {input_error}")
+            return {"answer": error_answer}
 
         # ---------------------------------------------------
         # CHAT
@@ -483,7 +493,7 @@ Eres un asistente conversacional amigable.
 Responde naturalmente al usuario.
 
 Mensaje:
-{state["question"]}
+{validated_question}
 """
 
         # ---------------------------------------------------
@@ -492,7 +502,7 @@ Mensaje:
         elif state["mode"] == MODE_CURATE:
 
             prompt = _build_curate_prompt(
-                question=state["question"],
+                question=validated_question,
                 base_context=state["base_context"],
                 user_context=state["user_context"],
                 suggestions=state.get("suggestions", []),
@@ -505,7 +515,7 @@ Mensaje:
         else:
 
             prompt = _build_qa_prompt(
-                question=state["question"],
+                question=validated_question,
                 base_context=state["base_context"],
                 user_context=state["user_context"],
             )
@@ -520,7 +530,17 @@ Mensaje:
             HumanMessage(content=prompt)
         ])
 
-        return {"answer": response.content}
+        # ---------------------------------------------------
+        # Validar output con guardrails
+        # ---------------------------------------------------
+        is_output_valid, validated_answer, output_error = validate_output(response.content)
+        
+        if not is_output_valid:
+            error_answer = f"La respuesta generada no pasó la validación: {output_error}\nPor favor reformula tu pregunta."
+            print(f"[guardrails] Output rechazado: {output_error}")
+            return {"answer": error_answer}
+
+        return {"answer": validated_answer}
 
     except Exception as e:
 

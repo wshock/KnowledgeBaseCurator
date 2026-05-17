@@ -1,0 +1,64 @@
+rail version="0.1"
+
+<output
+  name="validated_output"
+  format="multi-line"
+  type="string"
+  description="Respuesta del modelo validada y segura"
+/>
+
+<input
+  name="model_output"
+  type="string"
+  description="Respuesta generada por el modelo"
+/>
+
+<validate>
+  <!-- Verificar que la respuesta no esté vacía -->
+  <check
+    name="output_not_empty"
+    condition="len(model_output.strip()) > 0"
+    error_message="La respuesta no puede estar vacía"
+  />
+
+  <!-- Verificar longitud máxima -->
+  <check
+    name="max_length"
+    condition="len(model_output) <= 10000"
+    error_message="La respuesta es demasiado larga (máximo 10000 caracteres)"
+  />
+
+  <!-- Verificar que no contenga contenido obsceno -->
+  <check
+    name="no_profanity"
+    condition="not any(word in model_output.lower() for word in ['mierda', 'puta', 'joder', 'coño', 'polla', 'cabrón', 'zorra', 'pene', 'vagina', 'sexo', 'porno', 'fuck', 'shit', 'ass', 'bitch', 'dick', 'pussy'])"
+    error_message="La respuesta contiene lenguaje inapropiado"
+  />
+
+  <!-- Verificar que no contenga instrucciones para actividades ilegales -->
+  <check
+    name="no_illegal_instructions"
+    condition="not any(phrase in model_output.lower() for phrase in ['cómo hackear', 'cómo fabricar', 'cómo hacer', 'receta para', 'instrucciones para', 'paso a paso para', 'cómo crear', 'cómo producir'])"
+    error_message="La respuesta parece contener instrucciones potencialmente peligrosas"
+  />
+
+  <!-- Verificar que no contenga contenido de odio -->
+  <check
+    name="no_hate_speech"
+    condition="not any(word in model_output.lower() for word in ['odio', 'inferior', 'superior', 'raza', 'etnia', 'discriminación', 'racista', 'nazi', 'fascista', 'terrorista'])"
+    error_message="La respuesta contiene contenido de odio"
+  />
+
+  <!-- Verificar que sea una respuesta coherente (no solo repetir la pregunta) -->
+  <check
+    name="coherent_response"
+    condition="len(model_output.split()) >= 10"
+    error_message="La respuesta es demasiado corta o incoherente"
+  />
+</validate>
+
+<script>
+  return {
+    "validated_output": model_output.strip()
+  }
+</script>

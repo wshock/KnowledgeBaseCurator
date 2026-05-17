@@ -1,0 +1,65 @@
+rail version="0.1"
+
+<output
+  name="validated_input"
+  format="single-line"
+  type="string"
+  description="Input del usuario validado y limpio"
+/>
+
+<input
+  name="user_input"
+  type="string"
+  description="Pregunta o mensaje del usuario"
+/>
+
+<rail version="0.1">
+
+<output
+  name="validated_input"
+  format="single-line"
+  type="string"
+  description="Input del usuario validado y limpio"
+/>
+
+<input
+  name="user_input"
+  type="string"
+  description="Pregunta o mensaje del usuario"
+/>
+
+<validate>
+  <!-- Verificar que el input no esté vacío -->
+  <check
+    name="input_not_empty"
+    condition="len(user_input.strip()) > 0"
+    error_message="El input no puede estar vacío"
+  />
+
+  <!-- Verificar longitud máxima -->
+  <check
+    name="max_length"
+    condition="len(user_input) <= 2000"
+    error_message="El input es demasiado largo (máximo 2000 caracteres)"
+  />
+
+  <!-- Verificar que no contenga contenido obsceno -->
+  <check
+    name="no_profanity"
+    condition="not any(word in user_input.lower() for word in ['mierda', 'puta', 'joder', 'coño', 'polla', 'cabrón', 'zorra', 'pene', 'vagina', 'sexo', 'porno', 'fuck', 'shit', 'ass', 'bitch', 'dick', 'pussy'])"
+    error_message="El input contiene lenguaje inapropiado"
+  />
+
+  <!-- Verificar que sea relevante al propósito académico -->
+  <check
+    name="relevant_to_purpose"
+    condition="any(word in user_input.lower() for word in ['explica', 'qué es', 'cómo', 'por qué', 'definición', 'ejemplo', 'diferencia', 'comparación', 'análisis', 'calcular', 'fórmula', 'teoría', 'concepto', 'principio', 'método', 'técnica', 'problema', 'solución', 'duda', 'pregunta', 'ayuda', 'información', 'aprender', 'entender', 'comprender', 'estudiar']) or len(user_input.split()) >= 3"
+    error_message="El input no parece ser una pregunta académica relevante"
+  />
+</validate>
+
+<script>
+  return {
+    "validated_input": user_input.strip()
+  }
+</script>
