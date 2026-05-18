@@ -17,9 +17,16 @@ class Settings(BaseSettings):
     # Modelo para intent classification
     GROQ_CLASSIFIER_MODEL: str = "llama-3.1-8b-instant"
 
+    # PostgreSQL
+    DATABASE_URL: str
+
     # ChromaDB
-    CHROMA_HOST: str = "chromadb"
+    CHROMA_HOST: str = "localhost"
     CHROMA_PORT: int = 8000
+    CHROMA_SSL: bool = False
+    CHROMA_API_KEY: str | None = None
+    CHROMA_TENANT: str = "default_tenant"
+    CHROMA_DATABASE: str = "default_database"
     COLLECTION_NAME: str = "documents_v2"
 
     # Embeddings
