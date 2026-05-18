@@ -42,6 +42,7 @@ async def create_message(
                 "question": message.content,
                 "user_files": message.sources or [],
                 "base_files": message.base_sources or [],
+                "user_id": current_user.id,
                 "base_context": [],
                 "user_context": [],
                 "suggestions": [],
