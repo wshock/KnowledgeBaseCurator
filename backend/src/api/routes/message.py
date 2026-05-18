@@ -41,6 +41,7 @@ async def create_message(
         result = rag_chain.invoke({
                 "question": message.content,
                 "user_files": message.sources or [],
+                "base_files": message.base_sources or [],
                 "base_context": [],
                 "user_context": [],
                 "suggestions": [],

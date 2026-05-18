@@ -23,6 +23,7 @@ class MessageCreate(BaseModel):
     content: str = Field(..., min_length=1)
     sender: str = Field(..., pattern="^(user|system|assistant)$")
     sources: list[str] | None = None
+    base_sources: list[str] | None = None
     
 class MessageResponse(BaseModel):
     id: int
@@ -47,6 +48,7 @@ class DocumentResponse(BaseModel):
     filename: str
     chunks_indexed: int
     description: str | None
+    document_type: str
     uploaded_at: datetime
 
     class Config:

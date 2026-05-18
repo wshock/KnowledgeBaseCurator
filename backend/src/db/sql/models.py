@@ -50,6 +50,7 @@ class Document(Base):
     filename = Column(String, nullable=False)
     chunks_indexed = Column(Integer, nullable=False)
     description = Column(Text, nullable=True)
+    document_type = Column(String, default="user_upload", server_default="user_upload")
     uploaded_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="documents")
