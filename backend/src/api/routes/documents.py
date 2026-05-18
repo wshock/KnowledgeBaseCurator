@@ -44,7 +44,7 @@ async def upload_document(
 
     try:
         file_bytes = await file.read()
-        chunks_count = ingest_pdf(file_bytes, file.filename)
+        chunks_count = ingest_pdf(file_bytes, file.filename, user_id=current_user.id)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
     except Exception as exc:
@@ -91,7 +91,8 @@ async def upload_base_document(
             file.filename, 
             document_type="base_knowledge", 
             knowledge_base=knowledge_base, 
-            book=file.filename
+            book=file.filename,
+            user_id=current_user.id
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
@@ -146,7 +147,12 @@ async def list_base_documents(
         vs = get_vectorstore()
         collection = vs._collection
         result = collection.get(
-            where={"document_type": "base_knowledge"},
+            where={
+                "$and": [
+                    {"document_type": "base_knowledge"},
+                    {"user_id": current_user.id}
+                ]
+            },
             include=["metadatas"]
         )
 

@@ -54,6 +54,7 @@ class RAGState(TypedDict):
     user_context: list[str]         # Chunks recuperados de documentos del usuario
     user_files: list[str]           # Lista de nombres de archivos a consultar (user)
     base_files: list[str]           # Lista de nombres de archivos a consultar (base_knowledge)
+    user_id: int                    # ID del usuario para aislar consultas
     suggestions: list[dict]         # Lista de CurationSuggestion (solo en modo curate)
     analysis_error: Optional[str]   # Error ocurrido durante el análisis (si hubo)
     answer: str
@@ -139,15 +140,16 @@ def detect_intent(question: str) -> str:
 # Helpers de recuperación
 # ---------------------------------------------------------------------------
 
-def _retrieve_by_type(question: str, document_type: str, k: int, target_files: list[str] = None) -> list[str]:
+def _retrieve_by_type(question: str, document_type: str, k: int, user_id: int, target_files: list[str] = None) -> list[str]:
     
     """
-    Recupera chunks de ChromaDB filtrando por document_type y opcionalmente source.
+    Recupera chunks de ChromaDB filtrando por document_type, user_id y opcionalmente source.
  
     Args:
         question: Pregunta o tema a buscar.
         document_type: "base_knowledge" o "user_upload".
         k: Número de chunks a recuperar.
+        user_id: ID del usuario actual.
         target_files: Lista de nombres de archivo a filtrar.
  
     Returns:
@@ -158,12 +160,19 @@ def _retrieve_by_type(question: str, document_type: str, k: int, target_files: l
     try:
         vectorstore = get_vectorstore()
         
-        filter_dict = {"document_type": document_type}
+        filter_dict = {
+            "$and": [
+                {"document_type": document_type},
+                {"user_id": user_id}
+            ]
+        }
+        
         if target_files:
             if len(target_files) == 1:
                 filter_dict = {
                     "$and": [
                         {"document_type": document_type},
+                        {"user_id": user_id},
                         {"source": target_files[0]}
                     ]
                 }
@@ -171,6 +180,7 @@ def _retrieve_by_type(question: str, document_type: str, k: int, target_files: l
                 filter_dict = {
                     "$and": [
                         {"document_type": document_type},
+                        {"user_id": user_id},
                         {"source": {"$in": target_files}}
                     ]
                 }
@@ -225,6 +235,7 @@ def retrieve(state: RAGState) -> dict:
         question,
         "base_knowledge",
         settings.RETRIEVER_K,
+        user_id=state["user_id"],
         target_files=state.get("base_files", [])
     )
 
@@ -232,6 +243,7 @@ def retrieve(state: RAGState) -> dict:
         question,
         "user_upload",
         settings.RETRIEVER_K,
+        user_id=state["user_id"],
         target_files=state.get("user_files", [])
     )
 
