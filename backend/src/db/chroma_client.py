@@ -18,7 +18,10 @@ def get_embeddings() -> HuggingFaceEmbeddings:
 
     global _embeddings
     if _embeddings is None:
-        _embeddings = HuggingFaceEmbeddings(model_name=settings.EMBEDDING_MODEL)
+        _embeddings = HuggingFaceEmbeddings(
+            model_name=settings.EMBEDDING_MODEL,
+            encode_kwargs={"normalize_embeddings": True},
+        )
     return _embeddings
 
 
@@ -27,10 +30,14 @@ def get_vectorstore() -> Chroma:
     Retorna un vectorstore de LangChain conectado al servicio ChromaDB via HTTP.
     Usar esta función siempre que se necesite leer o escribir en ChromaDB.
     """
-    # Cliente HTTP hacia el contenedor de ChromaDB definido en docker-compose.
+    # Cliente HTTP hacia ChromaDB (soporta local o Chroma Cloud).
     http_client = chromadb.HttpClient(
         host=settings.CHROMA_HOST,
         port=settings.CHROMA_PORT,
+        ssl=settings.CHROMA_SSL,
+        headers={"x-chroma-token": settings.CHROMA_API_KEY} if settings.CHROMA_API_KEY else {},
+        tenant=settings.CHROMA_TENANT,
+        database=settings.CHROMA_DATABASE,
     )
 
     # Coleccion logica donde se almacenan y consultan los embeddings.
@@ -38,4 +45,5 @@ def get_vectorstore() -> Chroma:
         client=http_client,
         collection_name=settings.COLLECTION_NAME,
         embedding_function=get_embeddings(),
+        collection_metadata={"hnsw:space": "cosine"},
     )

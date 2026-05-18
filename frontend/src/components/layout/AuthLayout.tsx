@@ -17,24 +17,25 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({
   title = "SchoolAI",
   loginLink = "/login",
   showSidebar = false,
-  showSocialButtons = true,
   headerText,
   linkText,
 }) => {
   return (
-    <div className="h-screen flex flex-col overflow-hidden">
+    <div className="min-h-screen flex flex-col">
       <AuthHeader title={title} loginLink={loginLink} headerText={headerText} linkText={linkText} />
 
-      <main className="flex flex-1 overflow-hidden">
-        
+      <main className="flex flex-1">
         {showSidebar && (
-          <div className="bg-blue-950 h-full w-1/2 hidden md:flex flex-col items-center justify-center gap-6 px-12" />
+          <div className="bg-blue-950 hidden md:flex flex-col items-center justify-center gap-6 px-12 w-1/2" />
         )}
 
         <div
-          className={`h-full w-full ${
-            showSidebar ? "md:w-1/2" : "w-full"
-          } flex flex-col items-center justify-center bg-sky-50 px-6 overflow-y-auto`}
+          className={`
+            flex-1 flex flex-col items-center justify-center
+            bg-sky-50 px-4 py-8 md:px-6
+            ${showSidebar ? "md:w-1/2" : "w-full"}
+            overflow-y-auto
+          `}
         >
           {children}
         </div>

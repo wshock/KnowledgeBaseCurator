@@ -13,7 +13,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Pre-descargar el modelo de embeddings para evitar cold-start en runtime
 # Se descarga a la caché de HuggingFace dentro de la imagen
-RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
+RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2')"
 
 # Copiar el código fuente
 COPY . .

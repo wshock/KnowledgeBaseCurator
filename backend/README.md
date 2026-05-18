@@ -4,14 +4,15 @@ API para responder preguntas sobre documentos PDF usando Retrieval-Augmented Gen
 
 ## Stack
 
-| Capa | Tecnología |
-|---|---|
-| API | FastAPI |
-| Orquestación RAG | LangGraph |
-| Vector DB | ChromaDB (contenedor) |
-| LLM | Groq (`llama-3.1-8b-instant`) |
-| Embeddings | `all-MiniLM-L6-v2` (local, gratis) |
-| Contenedores | Docker + Docker Compose |
+| Capa             | Tecnología                         |
+| ---------------- | ---------------------------------- |
+| API              | FastAPI                            |
+| Orquestación RAG | LangGraph                          |
+| Vector DB        | ChromaDB (contenedor)              |
+| LLM              | Groq (`llama-3.1-8b-instant`)      |
+| Embeddings       | `all-MiniLM-L6-v2` (local, gratis) |
+| Guardrails       | Validación manual (regex)          |
+| Contenedores     | Docker + Docker Compose            |
 
 ## Estructura del proyecto
 
@@ -35,9 +36,14 @@ backend/
   │       └── qa.py         ← /ask
     ├── rag/
     │   ├── ingest.py     ← Parseo PDF → chunks → ChromaDB
-    │   └── graph.py      ← Grafo LangGraph: retrieve → generate
+    │   ├── graph.py      ← Grafo LangGraph: retrieve → generate
+    │   └── guardrails.py ← Validación de input/output con Guardrails AI
     └── db/
-        └── chroma_client.py  ← Conexión a ChromaDB
+        ├── chroma_client.py  ← Conexión a ChromaDB
+        └── sql/
+            ├── database.py   ← Conexión a PostgreSQL
+            ├── models.py      ← Modelos SQLAlchemy
+            └── schemas.py    ← Pydantic schemas
 ```
 
 ## Setup inicial (una sola vez por integrante)
@@ -76,6 +82,7 @@ docker compose up --build
 ```
 
 > La primera vez tarda varios minutos porque:
+>
 > - Instala todas las dependencias de Python
 > - Descarga el modelo de embeddings (~90 MB) dentro de la imagen
 >
@@ -89,6 +96,7 @@ curl http://localhost:8000/health
 ```
 
 También puedes abrir la documentación interactiva en:
+
 - **Swagger UI:** http://localhost:8000/docs
 - **ReDoc:** http://localhost:8000/redoc
 
@@ -104,6 +112,7 @@ curl -X POST http://localhost:8000/api/v1/upload \
 ```
 
 Respuesta:
+
 ```json
 {
   "filename": "mi_documento.pdf",
@@ -121,6 +130,7 @@ curl -X POST http://localhost:8000/api/v1/login \
 ```
 
 Respuesta:
+
 ```json
 {
   "access_token": "<jwt>",
@@ -146,6 +156,7 @@ curl -X POST http://localhost:8000/api/v1/ask \
 ```
 
 Respuesta:
+
 ```json
 {
   "question": "¿De qué trata el documento?",
@@ -157,16 +168,59 @@ Respuesta:
 
 ## Comandos útiles
 
-| Comando | Descripción |
-|---|---|
-| `docker compose up --build` | Primera vez o tras cambiar requirements.txt |
-| `docker compose up` | Levantar servicios (sin rebuild) |
-| `docker compose down` | Detener y eliminar contenedores |
-| `docker compose down -v` | Detener y **borrar** también los datos de ChromaDB |
-| `docker compose logs -f backend` | Ver logs del backend en tiempo real |
-| `docker compose logs -f chromadb` | Ver logs de ChromaDB |
+| Comando                           | Descripción                                        |
+| --------------------------------- | -------------------------------------------------- |
+| `docker compose up --build`       | Primera vez o tras cambiar requirements.txt        |
+| `docker compose up`               | Levantar servicios (sin rebuild)                   |
+| `docker compose down`             | Detener y eliminar contenedores                    |
+| `docker compose down -v`          | Detener y **borrar** también los datos de ChromaDB |
+| `docker compose logs -f backend`  | Ver logs del backend en tiempo real                |
+| `docker compose logs -f chromadb` | Ver logs de ChromaDB                               |
 
 > 💡 El código del backend tiene **hot-reload** activado. Al guardar un archivo `.py`, FastAPI se reinicia automáticamente sin necesidad de reconstruir la imagen.
+
+---
+
+## Guardrails
+
+El sistema usa **validación manual** para validar tanto los inputs del usuario como los outputs del modelo, asegurando que el contenido sea seguro y relevante.
+
+### Cómo funcionan
+
+1. **Validación de input:** Antes de procesar una pregunta, se valida que:
+   - No esté vacía
+   - No supere los 2000 caracteres
+   - No contenga lenguaje obsceno
+   - Sea relevante al propósito académico
+
+2. **Validación de output:** Después de generar una respuesta, se valida que:
+   - No esté vacía
+   - No supere los 10000 caracteres
+   - No contenga lenguaje obsceno
+   - No contenga instrucciones para actividades ilegales
+   - No contenga contenido de odio
+   - Sea una respuesta coherente
+
+### Configuración
+
+Las reglas de validación están en `backend/src/rag/guardrails.py`. Para modificar las listas de palabras prohibidas o frases peligrosas, edita las constantes:
+- `PROFANITY_WORDS` — Lenguaje obsceno
+- `ILLEGAL_PHRASES` — Instrucciones para actividades ilegales
+- `HATE_SPEECH_WORDS` — Contenido de odio
+- `ACADEMIC_KEYWORDS` — Palabras clave académicas para validar relevancia
+
+### Comportamiento en caso de rechazo
+
+- **Input rechazado:** El usuario recibe un mensaje explicativo y la pregunta no se procesa
+- **Output rechazado:** El usuario recibe un mensaje de error y se le pide reformular su pregunta
+
+### Logs
+
+Los eventos de guardrails se loggean en los logs del backend con el prefijo `[guardrails]`:
+
+```bash
+docker compose logs -f backend | grep guardrails
+```
 
 ---
 
@@ -207,17 +261,41 @@ Usuario hace pregunta
 
 Todas tienen valores por defecto excepto `GROQ_API_KEY`.
 
-| Variable | Por defecto | Descripción |
-|---|---|---|
-| `GROQ_API_KEY` | — | **Requerida.** API key de Groq |
-| `JWT_SECRET_KEY` | — | **Requerida.** Clave secreta para firmar/verificar JWT |
-| `JWT_ALGORITHM` | `HS256` | Algoritmo de firma JWT |
-| `JWT_ACCESS_TOKEN_EXPIRE_MINUTES` | `60` | Minutos de vida del access token |
-| `GROQ_MODEL` | `llama-3.1-8b-instant` | Modelo de Groq a usar |
-| `CHROMA_HOST` | `chromadb` | Host del servicio ChromaDB |
-| `CHROMA_PORT` | `8000` | Puerto del servicio ChromaDB |
-| `COLLECTION_NAME` | `documents` | Nombre de la colección en ChromaDB |
-| `EMBEDDING_MODEL` | `all-MiniLM-L6-v2` | Modelo de embeddings |
-| `CHUNK_SIZE` | `1000` | Tamaño de cada chunk en caracteres |
-| `CHUNK_OVERLAP` | `200` | Overlap entre chunks |
-| `RETRIEVER_K` | `4` | Número de chunks a recuperar por query |
+| Variable                          | Por defecto            | Descripción                                            |
+| --------------------------------- | ---------------------- | ------------------------------------------------------ |
+| `GROQ_API_KEY`                    | —                      | **Requerida.** API key de Groq                         |
+| `JWT_SECRET_KEY`                  | —                      | **Requerida.** Clave secreta para firmar/verificar JWT |
+| `JWT_ALGORITHM`                   | `HS256`                | Algoritmo de firma JWT                                 |
+| `JWT_ACCESS_TOKEN_EXPIRE_MINUTES` | `60`                   | Minutos de vida del access token                       |
+| `GROQ_MODEL`                      | `llama-3.1-8b-instant` | Modelo de Groq a usar                                  |
+| `CHROMA_HOST`                     | `chromadb`             | Host del servicio ChromaDB                             |
+| `CHROMA_PORT`                     | `8000`                 | Puerto del servicio ChromaDB                           |
+| `COLLECTION_NAME`                 | `documents`            | Nombre de la colección en ChromaDB                     |
+| `EMBEDDING_MODEL`                 | `all-MiniLM-L6-v2`     | Modelo de embeddings                                   |
+| `CHUNK_SIZE`                      | `1000`                 | Tamaño de cada chunk en caracteres                     |
+| `CHUNK_OVERLAP`                   | `200`                  | Overlap entre chunks                                   |
+| `RETRIEVER_K`                     | `4`                    | Número de chunks a recuperar por query                 |
+
+## para entrar a la base de datos
+
+docker ps
+
+docker exec -it backend-db-1 bash
+
+psql -U user -d postgres
+
+Ver tablas:
+
+\dt
+
+Ver bases de datos:
+
+\l
+
+Ver usuarios:
+
+\du
+
+Y por ejemplo ver datos de una tabla:
+
+SELECT \* FROM users;

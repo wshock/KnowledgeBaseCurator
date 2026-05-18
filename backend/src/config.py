@@ -14,21 +14,32 @@ class Settings(BaseSettings):
     # Groq
     GROQ_API_KEY: str
     GROQ_MODEL: str = "llama-3.3-70b-versatile"
+    # Modelo para intent classification
+    GROQ_CLASSIFIER_MODEL: str = "llama-3.1-8b-instant"
+
+    # PostgreSQL
+    DATABASE_URL: str
 
     # ChromaDB
-    CHROMA_HOST: str = "chromadb"
+    CHROMA_HOST: str = "localhost"
     CHROMA_PORT: int = 8000
-    COLLECTION_NAME: str = "documents"
+    CHROMA_SSL: bool = False
+    CHROMA_API_KEY: str | None = None
+    CHROMA_TENANT: str = "default_tenant"
+    CHROMA_DATABASE: str = "default_database"
+    COLLECTION_NAME: str = "documents_v2"
 
     # Embeddings
-    EMBEDDING_MODEL: str = "all-MiniLM-L6-v2"
+    EMBEDDING_MODEL: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 
     # Chunking
-    CHUNK_SIZE: int = 1000
-    CHUNK_OVERLAP: int = 200
+    CHUNK_SIZE: int = 800
+    CHUNK_OVERLAP: int = 120
 
     # Retrieval
-    RETRIEVER_K: int = 4
+    RETRIEVER_K: int = 6
+    RETRIEVER_FETCH_K: int = 20
+    RETRIEVER_MMR_LAMBDA: float = 0.5
 
     # JWT
     JWT_SECRET_KEY: str
