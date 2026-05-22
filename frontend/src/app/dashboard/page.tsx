@@ -10,15 +10,11 @@ import {
   apiGetUserDocuments,
   apiUploadUserDocument,
   apiDeleteDocument,
-  apiGetGlobalDocuments,
-  apiUploadGlobalDocument,
   DocumentResponse,
-  GlobalDocument,
 } from "@/src/services/document.service";
 import { useLoadChats } from "@/src/hooks/useLoadChats";
 import {
   RiSparklingLine,
-  RiGlobalLine,
   RiFileHistoryLine,
   RiChatSmile3Line,
   RiUploadCloudLine,
@@ -42,9 +38,7 @@ export default function Dashboard() {
   const token = useAuthStore((state) => state.token);
 
   const [activeTab, setActiveTab] = useState<"docs" | "chats">("docs");
-  const [globalDocs, setGlobalDocs] = useState<GlobalDocument[]>([]);
   const [userDocs, setUserDocs] = useState<DocumentResponse[]>([]);
-  const [uploadingGlobal, setUploadingGlobal] = useState(false);
   const [uploadingUser, setUploadingUser] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [initialLoadDone, setInitialLoadDone] = useState(false);
@@ -54,10 +48,6 @@ export default function Dashboard() {
   useEffect(() => {
     const currentToken = useAuthStore.getState().token;
     if (!currentToken || initialLoadDone) return;
-
-    apiGetGlobalDocuments(currentToken)
-      .then(setGlobalDocs)
-      .catch((err) => console.error("Error loading global docs:", err));
 
     apiGetUserDocuments(currentToken)
       .then(setUserDocs)
@@ -70,31 +60,12 @@ export default function Dashboard() {
     const currentToken = useAuthStore.getState().token;
     if (!currentToken) return;
     try {
-      const [globals, userDocsData] = await Promise.all([
-        apiGetGlobalDocuments(currentToken),
-        apiGetUserDocuments(currentToken),
-      ]);
-      setGlobalDocs(globals);
+      const userDocsData = await apiGetUserDocuments(currentToken);
       setUserDocs(userDocsData);
     } catch (err) {
       console.error("Error loading documents:", err);
     }
   }, []);
-
-  const handleUploadGlobal = async (file: File) => {
-    const currentToken = useAuthStore.getState().token;
-    if (!currentToken) return;
-    setUploadingGlobal(true);
-    setError(null);
-    try {
-      await apiUploadGlobalDocument(currentToken, file);
-      await reloadDocuments();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al subir");
-    } finally {
-      setUploadingGlobal(false);
-    }
-  };
 
   const handleUploadUser = async (file: File) => {
     const currentToken = useAuthStore.getState().token;
@@ -186,53 +157,6 @@ export default function Dashboard() {
 
         {activeTab === "docs" && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Global Documents Section */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center">
-                  <RiGlobalLine className="h-4 w-4 text-indigo-600" />
-                </div>
-                <div>
-                  <h2 className="text-base font-semibold text-[#1a2b4a]">Fuentes Globales</h2>
-                  <p className="text-xs text-gray-400">Base de conocimiento para el agente</p>
-                </div>
-              </div>
-
-              <label className="flex items-center justify-center gap-2 w-full py-3 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-blue-300 hover:bg-blue-50/30 transition-colors mb-4">
-                <input
-                  type="file"
-                  accept=".pdf"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleUploadGlobal(file);
-                  }}
-                  disabled={uploadingGlobal}
-                />
-                {uploadingGlobal ? (
-                  <span className="text-xs text-blue-600">Subiendo...</span>
-                ) : (
-                  <>
-                    <RiUploadCloudLine className="h-4 w-4 text-gray-400" />
-                    <span className="text-xs text-gray-500">Subir PDF como fuente global</span>
-                  </>
-                )}
-              </label>
-
-              {globalDocs.length === 0 ? (
-                <p className="text-xs text-gray-400 text-center py-6">No hay fuentes globales aún</p>
-              ) : (
-                <div className="space-y-2">
-                  {globalDocs.map((doc) => (
-                    <div key={doc.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                      <RiFilePdfLine className="h-4 w-4 text-red-400 shrink-0" />
-                      <span className="text-xs text-gray-700 truncate flex-1">{doc.filename}</span>
-                      <span className="text-[10px] text-gray-400">{doc.chunks_indexed} chunks</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
 
             {/* User Documents Section */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
