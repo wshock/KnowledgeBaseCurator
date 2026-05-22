@@ -5,8 +5,9 @@ import { useDashboardStore } from "@/src/store/dashboard.store";
 import { useAuthStore } from "@/src/store/auth.store";
 import { ChatInput } from "@/src/components/dashboard/chat/ChatInput";
 import { apiSendMessage, apiGetMessages } from "@/src/services/chat.service";
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import { RiGraduationCapLine } from "react-icons/ri";
+import { SelectedSources } from "@/src/components/dashboard/chat/SourcesModal";
 
 export default function ChatPage() {
   const params  = useParams();
@@ -19,6 +20,7 @@ export default function ChatPage() {
   const isAgentTyping   = useDashboardStore((s) => s.isAgentTyping);
   const token = useAuthStore((s) => s.token);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const [activeSources, setActiveSources] = useState<SelectedSources>({ globalIds: [], localIds: [] });
 
   useEffect(() => {
     if (!chat || !token || chat.messages.length > 0) return;
@@ -37,8 +39,12 @@ export default function ChatPage() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chat?.messages, isAgentTyping]);
 
-  const handleSendMessage = useCallback(async (message: string) => {
+  const handleSendMessage = useCallback(async (message: string, sources?: SelectedSources) => {
     if (!message.trim() || !chat || isAgentTyping) return;
+
+    if (sources) {
+      setActiveSources(sources);
+    }
 
     const userMessage = {
       id: Date.now().toString(),
@@ -55,12 +61,20 @@ export default function ChatPage() {
         addAgentMessage(localId, "Error: No se encontró un token válido. Inicia sesión de nuevo.");
         return;
       }
-      const pair = await apiSendMessage(currentToken, chat.backendId, message);
+
+      const finalSources = sources ?? activeSources;
+      const pair = await apiSendMessage(
+        currentToken,
+        chat.backendId,
+        message,
+        finalSources.localIds.length > 0 ? finalSources.localIds.map(String) : undefined,
+        finalSources.globalIds.length > 0 ? finalSources.globalIds : undefined
+      );
       addAgentMessage(localId, pair.assistant_message.content);
     } catch {
       addAgentMessage(localId, "Lo siento, hubo un error al procesar tu mensaje. Intenta de nuevo.");
     }
-  }, [token, chat, isAgentTyping, updateChat, localId, setAgentTyping, addAgentMessage]);
+  }, [token, chat, isAgentTyping, updateChat, localId, setAgentTyping, addAgentMessage, activeSources]);
 
   if (!chat) {
     return (

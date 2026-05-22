@@ -1,22 +1,14 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { FiX, FiUploadCloud, FiCheckCircle, FiLoader, FiXCircle } from "react-icons/fi";
+import { FiX, FiUploadCloud, FiCheckCircle, FiLoader } from "react-icons/fi";
 import { HiOutlineDocumentText } from "react-icons/hi2";
 import { RiGlobalLine } from "react-icons/ri";
 import { MdOutlineChat } from "react-icons/md";
-
-export interface MockDocument {
-  id: number;
-  filename: string;
-  size_bytes: number;
-  uploaded_at: string;
-  scope: "global" | "local";
-  chunks_indexed?: number;
-}
+import { apiGetGlobalDocuments, GlobalDocument } from "@/src/services/document.service";
 
 export interface SelectedSources {
-  globalIds: number[];
+  globalIds: string[];
   localIds: number[];
 }
 
@@ -29,15 +21,11 @@ interface SourcesModalProps {
   token: string;
 }
 
-const MOCK_GLOBAL_DOCS: MockDocument[] = [
-  { id: 1, filename: "electronica_boylestad.pdf",         size_bytes: 12_400_000, uploaded_at: "2026-05-10T10:00:00Z", scope: "global", chunks_indexed: 312 },
-  { id: 2, filename: "fundamentos-de-sistemas_floyd.pdf", size_bytes:  8_100_000, uploaded_at: "2026-05-11T09:30:00Z", scope: "global", chunks_indexed: 198 },
-];
-
 function formatSize(bytes: number) {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
+
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("es-CO", { day: "2-digit", month: "short" });
 }
@@ -45,38 +33,61 @@ function formatDate(iso: string) {
 type UploadStatus = "idle" | "uploading" | "success" | "error";
 interface PendingUpload { file: File; status: UploadStatus; error?: string; docId?: number }
 
+interface LocalDoc {
+  id: number;
+  filename: string;
+  size_bytes: number;
+  uploaded_at: string;
+}
+
 export function SourcesModal({ isOpen, onClose, chatId, activeSources, onConfirm, token }: SourcesModalProps) {
-  const [tab, setTab]                       = useState<"global" | "local">("global");
-  const [globalDocs, setGlobalDocs]         = useState<MockDocument[]>([]);
-  const [localDocs, setLocalDocs]           = useState<MockDocument[]>([]);
-  const [selectedGlobal, setSelectedGlobal] = useState<Set<number>>(new Set());
-  const [selectedLocal, setSelectedLocal]   = useState<Set<number>>(new Set());
+  const [tab, setTab] = useState<"global" | "local">("global");
+  const [globalDocs, setGlobalDocs] = useState<GlobalDocument[]>([]);
+  const [localDocs, setLocalDocs] = useState<LocalDoc[]>([]);
+  const [selectedGlobal, setSelectedGlobal] = useState<Set<string>>(new Set());
+  const [selectedLocal, setSelectedLocal] = useState<Set<number>>(new Set());
   const [pendingUploads, setPendingUploads] = useState<PendingUpload[]>([]);
-  const [isDragging, setIsDragging]         = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const loadGlobalDocs = useCallback(async () => {
+    if (!token) return;
+    setLoading(true);
+    try {
+      const docs = await apiGetGlobalDocuments(token);
+      setGlobalDocs(docs);
+    } catch (err) {
+      console.error("Error loading global docs:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
 
   useEffect(() => {
     if (!isOpen) return;
     setSelectedGlobal(new Set(activeSources.globalIds));
     setSelectedLocal(new Set(activeSources.localIds));
     setPendingUploads([]);
-    setGlobalDocs(MOCK_GLOBAL_DOCS);
-    setLocalDocs([]);
-  }, [isOpen, chatId]);
+    loadGlobalDocs();
+  }, [isOpen, chatId, activeSources, loadGlobalDocs]);
 
-  const toggleGlobal = (id: number) => setSelectedGlobal((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
-  const toggleLocal  = (id: number) => setSelectedLocal((prev)  => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const toggleGlobal = (id: string) => setSelectedGlobal((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const toggleLocal  = (id: number) => setSelectedLocal((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   const handleLocalUpload = useCallback(async (file: File) => {
-    if (file.type !== "application/pdf") { setPendingUploads((prev) => [...prev, { file, status: "error", error: "Solo se aceptan PDFs" }]); return; }
+    if (file.type !== "application/pdf") {
+      setPendingUploads((prev) => [...prev, { file, status: "error", error: "Solo se aceptan PDFs" }]);
+      return;
+    }
     setPendingUploads((prev) => [...prev, { file, status: "uploading" }]);
     await new Promise((r) => setTimeout(r, 1200));
-    const mockId  = Date.now();
-    const mockDoc: MockDocument = { id: mockId, filename: file.name, size_bytes: file.size, uploaded_at: new Date().toISOString(), scope: "local", chunks_indexed: Math.floor(file.size / 3000) };
+    const mockId = Date.now();
+    const mockDoc: LocalDoc = { id: mockId, filename: file.name, size_bytes: file.size, uploaded_at: new Date().toISOString() };
     setLocalDocs((prev) => [...prev, mockDoc]);
     setSelectedLocal((prev) => new Set([...prev, mockId]));
     setPendingUploads((prev) => prev.map((p) => p.file === file ? { ...p, status: "success", docId: mockId } : p));
-  }, [token, chatId]);
+  }, []);
 
   const handleFiles = useCallback((files: FileList | null) => {
     if (!files) return;
@@ -120,13 +131,19 @@ export function SourcesModal({ isOpen, onClose, chatId, activeSources, onConfirm
         <div className="flex-1 overflow-y-auto">
           {tab === "global" && (
             <div className="p-4 space-y-2">
-              {globalDocs.length === 0 && (
+              {loading && (
                 <div className="text-center py-10">
-                  <RiGlobalLine className="h-8 w-8 text-gray-200 mx-auto mb-2" />
-                  <p className="text-xs text-gray-400">No hay archivos globales aún. <a href="/dashboard/subir-archivo" className="text-blue-600 underline">Subir archivos</a></p>
+                  <FiLoader className="h-6 w-6 text-gray-300 mx-auto mb-2 animate-spin" />
+                  <p className="text-xs text-gray-400">Cargando documentos...</p>
                 </div>
               )}
-              {globalDocs.map((doc) => {
+              {!loading && globalDocs.length === 0 && (
+                <div className="text-center py-10">
+                  <RiGlobalLine className="h-8 w-8 text-gray-200 mx-auto mb-2" />
+                  <p className="text-xs text-gray-400">No hay archivos globales aún.</p>
+                </div>
+              )}
+              {!loading && globalDocs.map((doc) => {
                 const isSelected = selectedGlobal.has(doc.id);
                 return (
                   <button key={doc.id} onClick={() => toggleGlobal(doc.id)}
@@ -136,7 +153,7 @@ export function SourcesModal({ isOpen, onClose, chatId, activeSources, onConfirm
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-semibold text-gray-700 truncate">{doc.filename}</p>
-                      <p className="text-[10px] text-gray-400 mt-0.5">{formatSize(doc.size_bytes)} · {doc.chunks_indexed} fragmentos · {formatDate(doc.uploaded_at)}</p>
+                      <p className="text-[10px] text-gray-400 mt-0.5">{doc.chunks_indexed} fragmentos</p>
                     </div>
                     <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${isSelected ? "border-[#1a2b4a] bg-[#1a2b4a]" : "border-gray-300"}`}>
                       {isSelected && <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 12 12"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}

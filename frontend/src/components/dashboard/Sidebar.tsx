@@ -16,7 +16,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { LogoutModal } from "./LogoutModal";
 import { useState, useRef, useEffect } from "react";
 import { apiDeleteChat, apiUpdateChat } from "@/src/services/chat.service";
-import { SoftServeLogo } from "@/src/components/ui/SoftServeLogo";
 
 interface SidebarProps {
   collapsed: boolean;
