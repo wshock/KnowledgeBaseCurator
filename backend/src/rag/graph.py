@@ -1,19 +1,38 @@
 """Definicion del grafo RAG con LangGraph.
  
-El pipeline tiene tres nodos principales:
-1) retrieve : recupera contexto relevante desde ChromaDB, separando
-              chunks de libros base (base_knowledge) y del usuario (user_upload).
-2) analyze  : compara ambos contextos, detecta inconsistencias conceptuales
-              y construye sugerencias académicas estructuradas.
-              Solo se ejecuta cuando hay documentos del usuario en ChromaDB.
-3) generate : construye el prompt final y genera la respuesta con Groq.
-              Usa el análisis previo si está disponible.
+El pipeline tiene cuatro nodos principales:
+1) retrieve     : valida el input con guardrails ANTES de tocar ChromaDB o internet.
+                  Si el input es inválido (tema no académico, lenguaje inapropiado,
+                  intención maliciosa), corta el flujo inmediatamente y va a generate
+                  con input_error seteado.
+                  Si el input es válido, recupera contexto desde ChromaDB y calcula
+                  el similarity score promedio.
+2) web_search   : [FALLBACK] se activa cuando el score de similitud del RAG está
+                  por debajo del umbral configurado (WEB_SEARCH_SIMILARITY_THRESHOLD).
+                  Busca en la web usando Tavily y filtra resultados no académicos.
+3) analyze      : compara ambos contextos, detecta inconsistencias conceptuales
+                  y construye sugerencias académicas estructuradas.
+                  Solo se ejecuta cuando hay documentos del usuario en ChromaDB.
+4) generate     : construye el prompt final y genera la respuesta con Groq.
+                  Si retrieve detectó input_error, responde con el mensaje de error
+                  directamente sin llamar al LLM.
+                  Indica claramente la procedencia de cada fragmento (RAG vs web).
+                  Valida el output con guardrails antes de retornar.
  
-Flujo QA (sin documentos del usuario):
+Flujo input inválido:
+    START → retrieve (corta) → generate (retorna error) → END
+ 
+Flujo QA sin fallback web:
     START → retrieve → generate → END
  
-Flujo Curación (con documentos del usuario):
+Flujo QA con fallback web:
+    START → retrieve → web_search → generate → END
+ 
+Flujo Curación:
     START → retrieve → analyze → generate → END
+ 
+Flujo Curación con fallback web:
+    START → retrieve → web_search → analyze → generate → END
 """
 
  
@@ -26,7 +45,16 @@ from db.chroma_client import get_vectorstore
 from config import settings
 from rag.guardrails import validate_input, validate_output
 
-
+ 
+# ---------------------------------------------------------------------------
+# Tavily — cliente de búsqueda web
+# ---------------------------------------------------------------------------
+try:
+    from tavily import TavilyClient
+    _tavily_available = True
+except ImportError:
+    _tavily_available = False
+    print("[web_search] Advertencia: tavily-python no instalado. pip install tavily-python")
 
 # ---------------------------------------------------------------------------
 # Constantes de modo
@@ -34,6 +62,18 @@ from rag.guardrails import validate_input, validate_output
 MODE_CHAT = "chat"
 MODE_QA = "qa"
 MODE_CURATE = "curate"
+
+# ---------------------------------------------------------------------------
+# Dominios académicos de confianza para el filtro post-búsqueda
+# ---------------------------------------------------------------------------
+TRUSTED_ACADEMIC_DOMAINS = [
+    ".edu", ".gov", ".org",
+    "scholar.google", "pubmed", "scielo", "redalyc",
+    "researchgate", "academia.edu", "arxiv.org",
+    "springer.com", "elsevier.com", "ieee.org",
+    "jstor.org", "dialnet.unirioja.es",
+    "wikipedia.org",  # Aceptable como punto de entrada académico
+]
 
 # ---------------------------------------------------------------------------
 # Estado del grafo
@@ -59,6 +99,10 @@ class RAGState(TypedDict):
     analysis_error: Optional[str]   # Error ocurrido durante el análisis (si hubo)
     answer: str
     mode: str                       # MODE_QA o MODE_CURATE
+    rag_similarity_score: float      # Score promedio del contexto RAG recuperado
+    web_results: list[dict]          # Snippets de búsqueda web [{title, url, content}]
+    used_web_fallback: bool          # Flag: se usó búsqueda web en esta consulta
+    input_error: Optional[str]       # Error de guardrail detectado en retrieve (corta el flujo)
 
 def _build_intent_classifier_prompt(question: str) -> str:
 
@@ -195,11 +239,29 @@ def _retrieve_by_type(question: str, document_type: str, k: int, user_id: int, t
             },
         )
         docs = retriever.invoke(question)
-        return [doc.page_content for doc in docs]
+        chunks = [doc.page_content for doc in docs]
+        if not chunks:
+            return [], 0.0
+ 
+        # Búsqueda separada solo para obtener el similarity score
+        # No interrumpimos el flujo si falla; usamos 0.0 como fallback
+        scored_results = vectorstore.similarity_search_with_score(
+            question,
+            k=k,
+            filter=filter_dict,
+        )
+ 
+        if scored_results:
+            avg_distance = sum(score for _, score in scored_results) / len(scored_results)
+            avg_similarity = max(0.0, 1.0 - avg_distance)
+        else:
+            avg_similarity = 0.0
+ 
+        return chunks, avg_similarity
     except Exception as e:
         # No interrumpimos el flujo; el nodo caller decide qué hacer.
         print(f"[retrieve] Advertencia al recuperar '{document_type}': {e}")
-        return []
+        return [], 0.0
     
 
 
@@ -208,10 +270,36 @@ def _retrieve_by_type(question: str, document_type: str, k: int, user_id: int, t
 # ---------------------------------------------------------------------------
 def retrieve(state: RAGState) -> dict:
     """
-    Nodo 1 — Recuperación.
+    Nodo 1 — Recuperación con validación de guardrails al inicio.
+ 
+    Orden de ejecución:
+    1. Valida el input con guardrails ANTES de tocar ChromaDB o internet.
+       Si falla → setea input_error y retorna con mode=MODE_CHAT para ir
+       directo a generate sin pasar por web_search ni analyze.
+    2. Detecta intención (chat / qa / curate).
+    3. Recupera chunks de ChromaDB con MMR y calcula rag_similarity_score.
     """
 
     question = state["question"]
+    
+    # ------------------------------------------------------------------
+    # GUARDRAIL DE INPUT — primer filtro, antes de cualquier búsqueda
+    # ------------------------------------------------------------------
+    is_input_valid, _, input_error = validate_input(question)
+ 
+    if not is_input_valid:
+        print(f"[guardrails][retrieve] Input rechazado: {input_error}")
+        return {
+            "base_context": [],
+            "user_context": [],
+            "mode": MODE_CHAT,          # Fuerza flujo directo a generate
+            "suggestions": [],
+            "analysis_error": None,
+            "rag_similarity_score": 1.0,
+            "web_results": [],
+            "used_web_fallback": False,
+            "input_error": input_error,
+        }
 
     # Detectar intención REAL
     mode = detect_intent(question)
@@ -226,12 +314,16 @@ def retrieve(state: RAGState) -> dict:
             "mode": MODE_CHAT,
             "suggestions": [],
             "analysis_error": None,
+            "rag_similarity_score": 1.0,
+            "web_results": [],
+            "used_web_fallback": False,
+            "input_error": None,
         }
 
     # ---------------------------------------------------
     # QA o CURATE → sí hacer retrieval
     # ---------------------------------------------------
-    base_chunks = _retrieve_by_type(
+    base_chunks, base_score = _retrieve_by_type(
         question,
         "base_knowledge",
         settings.RETRIEVER_K,
@@ -239,13 +331,23 @@ def retrieve(state: RAGState) -> dict:
         target_files=state.get("base_files", [])
     )
 
-    user_chunks = _retrieve_by_type(
+    user_chunks, user_score = _retrieve_by_type(
         question,
         "user_upload",
         settings.RETRIEVER_K,
         user_id=state["user_id"],
         target_files=state.get("user_files", [])
     )
+    # Score final: promedio ponderado.
+    # Si no hay user_context usamos solo base_score.
+    if user_chunks:
+        avg_score = (base_score + user_score) / 2
+    else:
+        avg_score = base_score
+ 
+    print(f"[retrieve] RAG similarity score: {avg_score:.3f} "
+          f"(umbral: {settings.WEB_SEARCH_SIMILARITY_THRESHOLD})")
+    
 
     return {
         "base_context": base_chunks,
@@ -253,10 +355,104 @@ def retrieve(state: RAGState) -> dict:
         "mode": mode,
         "suggestions": [],
         "analysis_error": None,
+        "rag_similarity_score": avg_score,
+        "web_results": [],
+        "used_web_fallback": False,
+        "input_error": None,
     }
+
+# ---------------------------------------------------------------------------
+# Nodo 2 — Web Search Fallback
+# ---------------------------------------------------------------------------
+def _is_academic_result(result: dict) -> bool:
+    """
+    Filtra resultados web: acepta solo fuentes académicas o de confianza.
+ 
+    Criterios:
+    - URL contiene un dominio de confianza, O
+    - El score de relevancia de Tavily supera 0.5
+    """
+    url = result.get("url", "").lower()
+    
+    # Dominios explícitamente bloqueados (redes sociales, entretenimiento)
+    BLOCKED_DOMAINS = [
+        "tiktok.com", "instagram.com",
+        "facebook.com", "twitter.com", "x.com",
+        "pinterest.com",
+    ]
+    if any(blocked in url for blocked in BLOCKED_DOMAINS):
+        return False
+    
+    is_trusted_domain = any(domain in url for domain in TRUSTED_ACADEMIC_DOMAINS)
+    tavily_score = result.get("score", 0.0)
+    is_high_relevance = tavily_score >= 0.5
+
+    return is_trusted_domain or is_high_relevance
+ 
+def web_search(state: RAGState) -> dict:
+    """
+    Nodo 2 — Búsqueda web como fallback académico.
+ 
+    Se activa cuando rag_similarity_score < WEB_SEARCH_SIMILARITY_THRESHOLD.
+    Consulta Tavily con contexto académico y filtra resultados de baja calidad.
+ 
+    Modifica el estado con:
+    - web_results: lista de snippets filtrados [{title, url, content, score}]
+    - used_web_fallback: True
+    """
+    question = state["question"]
+    print(f"[web_search] Activando búsqueda web para: '{question[:80]}...'")
+ 
+    if not _tavily_available:
+        print("[web_search] Tavily no disponible — omitiendo búsqueda web.")
+        return {"web_results": [], "used_web_fallback": False}
+ 
+    try:
+        client = TavilyClient(api_key=settings.TAVILY_API_KEY)
+ 
+        academic_query = f"{question} site:edu OR site:gov OR academic research"
+ 
+        response = client.search(
+            query=academic_query,
+            search_depth="advanced",
+            max_results=settings.WEB_SEARCH_MAX_RESULTS,
+            include_answer=False,
+            include_raw_content=False,
+        )
+ 
+        raw_results = response.get("results", [])
+ 
+        # Filtro post-búsqueda: solo resultados académicos o de alta relevancia
+        filtered = [r for r in raw_results if _is_academic_result(r)]
+ 
+        # Ordenar por score y tomar los mejores
+        top_results = sorted(
+            filtered,
+            key=lambda r: r.get("score", 0.0),
+            reverse=True,
+        )[:settings.WEB_SEARCH_TOP_K]
+ 
+        web_results = [
+            {
+                "title": r.get("title", "Sin título"),
+                "url": r.get("url", ""),
+                "content": r.get("content", ""),
+                "score": round(r.get("score", 0.0), 3),
+            }
+            for r in top_results
+        ]
+ 
+        print(f"[web_search] {len(raw_results)} resultados brutos → "
+              f"{len(filtered)} filtrados → {len(web_results)} seleccionados.")
+ 
+        return {"web_results": web_results, "used_web_fallback": True}
+ 
+    except Exception as e:
+        print(f"[web_search] Error durante la búsqueda: {e}")
+        return {"web_results": [], "used_web_fallback": False}
     
 # ---------------------------------------------------------------------------
-# Nodo 2 — Análisis y detección de inconsistencias
+# Nodo 3 — Análisis y detección de inconsistencias
 # ---------------------------------------------------------------------------
 def _build_analysis_prompt(question: str, base_context: list[str], user_context: list[str]) -> str:
     """
@@ -303,7 +499,7 @@ def _build_analysis_prompt(question: str, base_context: list[str], user_context:
     """
 def analyze(state: RAGState) -> dict:
     """
-    Nodo 2 — Análisis de inconsistencias (solo en modo curate).
+    Nodo 3 — Análisis de inconsistencias (solo en modo curate).
  
     Compara user_context con base_context usando el LLM para detectar:
     - Redundancias
@@ -378,12 +574,40 @@ def analyze(state: RAGState) -> dict:
         }
         
 # ---------------------------------------------------------------------------
-# Nodo 3 — Generación de respuesta final
+# Nodo 4 — Generación de respuesta final
 # ---------------------------------------------------------------------------
+def _build_web_snippet_block(web_results: list[dict]) -> str:
+    """Formatea los snippets web para el prompt (solo contenido, sin URLs)."""
+    if not web_results:
+        return "Sin resultados web disponibles."
+ 
+    lines = []
+    for i, r in enumerate(web_results, 1):
+        lines.append(
+            f"[Fuente web {i}]\n"
+            f"Título: {r['title']}\n"
+            f"Contenido: {r['content']}\n"
+        )
+    return "\n---\n".join(lines)
+ 
+ 
+def _build_references_block(web_results: list[dict]) -> str:
+    """Genera el bloque de referencias al final de la respuesta."""
+    if not web_results:
+        return ""
+ 
+    lines = ["\n📚 Fuentes consultadas en internet:\n"]
+    for i, r in enumerate(web_results, 1):
+        lines.append(f"  {i}. {r['title']}\n     {r['url']}")
+    return "\n".join(lines)
+
 def _build_qa_prompt(
     question: str,
     base_context: list[str],
     user_context: list[str],
+    web_results: list[dict] = None,
+    used_web_fallback: bool = False,
+    rag_similarity_score: float = 0.0,
 ) -> str:
 
     base_text = (
@@ -398,23 +622,55 @@ def _build_qa_prompt(
         else "Sin documentos del usuario."
     )
 
+    web_section = ""
+    references_block = ""
+    provenance_rule = ""
+
+    # Solo usar web si NO hay contexto en los documentos
+    has_relevant_context = bool(base_context or user_context) and rag_similarity_score >= 0.25
+
+    if used_web_fallback and web_results and not has_relevant_context:
+        web_block = _build_web_snippet_block(web_results)
+        references_block = _build_references_block(web_results)
+        web_section = f"""
+=== INFORMACIÓN COMPLEMENTARIA DE INTERNET ===
+(Los documentos indexados no tenían suficiente contexto para esta consulta.
+La siguiente información proviene de búsqueda web.)
+
+{web_block}
+
+"""
+        provenance_rule = f"""- Escribe tu respuesta de forma fluida y natural, SIN mencionar URLs ni fuentes dentro del texto.
+- Al final de tu respuesta, incluye exactamente este bloque de referencias sin modificarlo:
+{references_block}
+"""
+
     return f"""
+INSTRUCCIÓN CRÍTICA: Debes escribir SIEMPRE con mayúsculas al inicio de cada oración. Nunca escribas todo en minúsculas. Esto es obligatorio.
 Eres un asistente académico inteligente y útil.
 
 Tu tarea es responder preguntas usando:
-
 1. Los documentos del usuario como fuente principal.
 2. Los libros base como referencia académica de apoyo.
+3. Información web (solo si está disponible en la sección correspondiente).
 
-Reglas IMPORTANTES:
+Reglas de formato OBLIGATORIAS:
+- Empieza siempre con mayúscula.
+- Usa mayúsculas correctamente en toda la respuesta (nombres propios, inicio de oraciones).
+- NO uses asteriscos para negrillas (**texto**). Usa texto plano.
+- NO uses markdown de ningún tipo.
+- Organiza las ideas con saltos de línea y numeración simple (1. 2. 3.) sin negrillas.
+- NO menciones URLs ni fuentes dentro de los párrafos. Las fuentes van solo al final.
+{provenance_rule}
+Reglas de contenido:
 - Responde de forma natural y útil.
 - Prioriza la información del documento del usuario cuando la pregunta sea sobre su archivo.
 - Usa los libros base para complementar, corregir o contextualizar.
-- Si la pregunta es sobre contenido académico general (transistores, circuitos, etc.), 
-  responde solo con los libros base e ignora el documento del usuario si no es relevante.
-- Si la pregunta es directamente sobre el documento del usuario, entonces sí usa 
-  ambas fuentes y puedes mencionar diferencias con los libros base.
-- NO generes reportes de curaduría ni listas de inconsistencias a menos que el usuario lo solicite explícitamente.
+- Si la pregunta es sobre contenido académico general, responde con libros base
+  e ignora el documento del usuario si no es relevante.
+- Si la pregunta es directamente sobre el documento del usuario, usa ambas fuentes
+  y puedes mencionar diferencias con los libros base.
+- NO generes reportes de curaduría ni listas de inconsistencias a menos que el usuario lo solicite.
 - No inventes información.
 
 === LIBROS BASE ===
@@ -422,13 +678,12 @@ Reglas IMPORTANTES:
 
 === DOCUMENTOS DEL USUARIO ===
 {user_text}
-
+{web_section}
 Pregunta:
 {question}
 
 Respuesta:
 """
- 
  
 def _build_curate_prompt(
     question: str,
@@ -436,6 +691,8 @@ def _build_curate_prompt(
     user_context: list[str],
     suggestions: list[dict],
     analysis_error: Optional[str],
+    web_results: list[dict] = None,
+    used_web_fallback: bool = False,
     ) -> str:
         """
         Prompt de curaduría adaptativo:
@@ -456,6 +713,23 @@ def _build_curate_prompt(
             suggestions_text = f"No se pudo completar el análisis automático: {analysis_error}"
         else:
             suggestions_text = "No se detectaron inconsistencias ni sugerencias relevantes."
+        
+        web_section = ""
+        if used_web_fallback and web_results:
+            web_block = _build_web_snippet_block(web_results)
+            web_section = f"""
+    === INFORMACIÓN COMPLEMENTARIA DE INTERNET ===
+    (Los documentos indexados no tenían suficiente contexto.
+    La siguiente información proviene de búsqueda web y debe citarse como tal.)
+    
+    {web_block}
+    
+    """
+        provenance_rule = (
+            "- Indica claramente si algún dato proviene de Internet (cita título y URL). "
+            "Diferéncialos de los documentos indexados.\n"
+            if used_web_fallback and web_results else ""
+        )
     
         return f"""Eres un curador académico experto y amigable.
 
@@ -466,13 +740,14 @@ def _build_curate_prompt(
         Si es CONVERSACIONAL:
         - Responde de forma directa y natural, como si fuera una conversación.
         - Da sugerencias concretas y puntuales sin estructuras rígidas.
-        - Usa un tono amigable y constructivo, Tambien puedes usar emojis para que se vea mas amigable.
+        - Usa un tono amigable y constructivo, Tambien puedes usar emojis.
         - No hagas un reporte completo, solo responde lo que preguntó.
         
         Si es FORMAL:
         - Organiza la respuesta en secciones claras usando emojis como separadores.
         - Ejemplo: "📋 Resumen", "🔍 Hallazgos", "✅ Recomendacion"
         - Sé detallado y profesional.
+        
         REGLAS DE CONTENIDO (aplican siempre):
         - SIEMPRE usa los libros base como referencia para tus sugerencias.
         - Si el documento del usuario y los libros tienen temas en común, compáralos directamente
@@ -481,7 +756,7 @@ def _build_curate_prompt(
         pero aun así indica qué temas de los libros debería considerar el usuario para
         enriquecer su documento, citando ejemplos concretos del contenido de los libros.
         - Nunca des sugerencias genéricas sin basarlas en el contenido real de los libros base
-
+        {provenance_rule}
         REGLAS DE FORMATO (aplican siempre):
         - NO uses asteriscos para negrillas ni markdown (**texto**).
         - NO uses numeracion con puntos seguidos de texto en negrilla.
@@ -496,26 +771,43 @@ def _build_curate_prompt(
 
         === DOCUMENTO DEL USUARIO ===
         {user_text}
-
+        {web_section}
         Respuesta:"""
 
 
 
 def generate(state: RAGState) -> dict:
     """
-    Nodo 3 — Generación final con guardrails.
+    Nodo 4 — Generación final con guardrails.
+ 
+    Si retrieve ya detectó un input_error, retorna el mensaje de error
+    directamente sin llamar al LLM ni gastar tokens.
+ 
+    Incorpora snippets web en el prompt cuando used_web_fallback=True,
+    indicando la procedencia de cada fragmento.
     """
 
     try:
-        # ---------------------------------------------------
-        # Validar input con guardrails
-        # ---------------------------------------------------
-        is_input_valid, validated_question, input_error = validate_input(state["question"])
         
+        # ------------------------------------------------------------------
+        # GUARDRAIL DE INPUT — si retrieve ya lo rechazó, responder directo
+        # ------------------------------------------------------------------
+        input_error = state.get("input_error")
+        if input_error:
+            print(f"[guardrails][generate] Respondiendo con error de input: {input_error}")
+            return {"answer": f"Tu mensaje no pudo ser procesado: {input_error}"}
+        
+        # ---------------------------------------------------
+        # Validación de seguridad (por si generate se llama directo en tests)
+        # ---------------------------------------------------
+        is_input_valid, validated_question, val_error = validate_input(state["question"])
         if not is_input_valid:
-            error_answer = f"Tu mensaje no pudo ser procesado: {input_error}"
-            print(f"[guardrails] Input rechazado: {input_error}")
+            error_answer = f"Tu mensaje no pudo ser procesado: {val_error}"
+            print(f"[guardrails][generate] Input rechazado en segunda validación: {val_error}")
             return {"answer": error_answer}
+        
+        web_results = state.get("web_results", [])
+        used_web_fallback = state.get("used_web_fallback", False)
 
         # ---------------------------------------------------
         # CHAT
@@ -542,6 +834,8 @@ Mensaje:
                 user_context=state["user_context"],
                 suggestions=state.get("suggestions", []),
                 analysis_error=state.get("analysis_error"),
+                web_results=web_results,
+                used_web_fallback=used_web_fallback,
             )
 
         # ---------------------------------------------------
@@ -553,6 +847,9 @@ Mensaje:
                 question=validated_question,
                 base_context=state["base_context"],
                 user_context=state["user_context"],
+                web_results=web_results,
+                used_web_fallback=used_web_fallback,
+                rag_similarity_score=state.get("rag_similarity_score", 0.0),
             )
 
         llm = ChatGroq(
@@ -594,19 +891,54 @@ Mensaje:
 # ---------------------------------------------------------------------------
 def route_after_retrieve(state: RAGState) -> str:
     """
-    Decide el siguiente nodo después de retrieve.
+   Decide el siguiente nodo después de retrieve.
+ 
+    Lógica:
+    - Si hay input_error → generate (responde el error directamente)
+    - Si el score RAG está por debajo del umbral → web_search (fallback)
+    - Si es modo CURATE con user_context → analyze
+    - En cualquier otro caso → generate
     """
+    
+    
 
-    # Curaduría SOLO si hay documentos del usuario
+    # Input inválido: ir directo a generate sin búsquedas
+    if state.get("input_error"):
+        return "generate"
+ 
+    mode = state["mode"]
+    score = state.get("rag_similarity_score", 1.0)
+    threshold = getattr(settings, "WEB_SEARCH_SIMILARITY_THRESHOLD", 0.4)
+ 
+    # Chat nunca va a web
+    if mode == MODE_CHAT:
+        return "generate"
+ 
+    # Score bajo → activar fallback web
+    if score < threshold:
+        print(f"[router] Score {score:.3f} < umbral {threshold} → activando web_search")
+        return "web_search"
+ 
+    # Score suficiente: routing normal
+    if mode == MODE_CURATE and state.get("user_context"):
+        return "analyze"
+ 
+    return "generate"
+ 
+def route_after_web_search(state: RAGState) -> str:
+    """
+    Decide el siguiente nodo después de web_search.
+ 
+    - CURATE con user_context → analyze
+    - QA / CURATE sin user_context → generate
+    """
     if (
         state["mode"] == MODE_CURATE
         and state.get("user_context")
     ):
         return "analyze"
-
-    return "generate"
  
-
+    return "generate"
 
 # ---------------------------------------------------------------------------
 # Construcción del grafo
@@ -615,7 +947,8 @@ def route_after_retrieve(state: RAGState) -> str:
 # ---------------------------------------------------------------------------
 def build_rag_graph():
     """
-    Crea y compila el grafo con routing condicional.
+    Crea y compila el grafo con routing condicional + nodo de búsqueda web.
+    
  
     El nodo retrieve determina el modo según si hay documentos del usuario
     en ChromaDB, y el router decide si pasar por analyze o ir directo a generate.
@@ -623,6 +956,7 @@ def build_rag_graph():
     graph = StateGraph(RAGState)
  
     graph.add_node("retrieve", retrieve)
+    graph.add_node("web_search", web_search)
     graph.add_node("analyze", analyze)
     graph.add_node("generate", generate)
  
@@ -632,6 +966,15 @@ def build_rag_graph():
     graph.add_conditional_edges(
         "retrieve",
         route_after_retrieve,
+        {
+            "web_search": "web_search",
+            "analyze": "analyze",
+            "generate": "generate",
+        },
+    )
+    graph.add_conditional_edges(
+        "web_search",
+        route_after_web_search,
         {
             "analyze": "analyze",
             "generate": "generate",

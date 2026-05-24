@@ -40,7 +40,13 @@ class Settings(BaseSettings):
     RETRIEVER_K: int = 6
     RETRIEVER_FETCH_K: int = 20
     RETRIEVER_MMR_LAMBDA: float = 0.5
-
+    
+    # Web Search (fallback cuando el RAG no encuentra contexto suficiente)
+    TAVILY_API_KEY: str = ""
+    WEB_SEARCH_SIMILARITY_THRESHOLD: float = 0.4  # Score mínimo del RAG para evitar búsqueda web
+    WEB_SEARCH_MAX_RESULTS: int = 8               # Resultados brutos que pide a Tavily
+    WEB_SEARCH_TOP_K: int = 3                     # Snippets filtrados que llegan al prompt
+    
     # JWT
     JWT_SECRET_KEY: str
     JWT_ALGORITHM: str = "HS256"

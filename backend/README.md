@@ -204,6 +204,7 @@ El sistema usa **validación manual** para validar tanto los inputs del usuario 
 ### Configuración
 
 Las reglas de validación están en `backend/src/rag/guardrails.py`. Para modificar las listas de palabras prohibidas o frases peligrosas, edita las constantes:
+
 - `PROFANITY_WORDS` — Lenguaje obsceno
 - `ILLEGAL_PHRASES` — Instrucciones para actividades ilegales
 - `HATE_SPEECH_WORDS` — Contenido de odio
@@ -299,3 +300,5 @@ Ver usuarios:
 Y por ejemplo ver datos de una tabla:
 
 SELECT \* FROM users;
+
+## para usar la tavily create una ApiKey en https://tavily.com/ y agregala al .env
