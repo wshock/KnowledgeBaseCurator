@@ -49,6 +49,10 @@ async def create_message(
                 "analysis_error": None,
                 "answer": "",
                 "mode": "",
+                "rag_similarity_score": 0.0,
+                "web_results": [],
+                "used_web_fallback": False,
+                "input_error": None,
         })
     except Exception as exc:
         raise HTTPException(status_code=500, detail="Error interno al procesar la pregunta.")

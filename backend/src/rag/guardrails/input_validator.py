@@ -6,6 +6,7 @@ from typing import Tuple, Optional
 from .regex_utils import normalize_text, contains_pattern
 from .patterns import PROFANITY_PATTERNS
 from .contextual import is_academic_context, has_malicious_intent
+from .contextual import is_academic_context, has_malicious_intent, is_academic_question
 
 def validate_input(user_input: str) -> Tuple[bool, str, Optional[str]]:
     """
@@ -48,6 +49,13 @@ def validate_input(user_input: str) -> Tuple[bool, str, Optional[str]]:
             False,
             user_input,
             "El input contiene solicitudes que incumplen las políticas de seguridad."
+        )
+    if not is_academic_question(normalized_input):
+        return (
+            False,
+            user_input,
+            "Esta consulta no está relacionada con temas académicos. "
+            "Por favor haz preguntas sobre el contenido del curso."
         )
 
     return (

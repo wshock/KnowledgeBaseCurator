@@ -114,3 +114,39 @@ SAFE_ACADEMIC_CONTEXTS = [
     r"\bc[oó]mo\s+hacer\s+embeddings\b",
     r"\bmachine\s+learning\b",
 ]
+
+# -------------------------------------------------------------------
+# Temas NO académicos — se bloquean en el input
+# -------------------------------------------------------------------
+
+NON_ACADEMIC_PATTERNS = [
+    # Deportes
+    r"\b(mundial|copa del mundo|liga|Champions League|premier league)\b",
+    r"\b(gol|portero|delantero|fútbol|soccer|NBA|NFL|MLB)\b",
+    r"\b(quién ganó|resultado del partido|marcador)\b",
+
+    # Entretenimiento / farándula
+    r"\b(película|serie|netflix|spotify|canción|álbum|concierto)\b",
+    r"\b(famoso|celebridad|actor|actriz|cantante)\b",
+
+    # Apuestas / juegos
+    r"\b(casino|apuesta|lotería|ruleta|póker)\b",
+
+    # Chismes / redes sociales
+    r"\b(tiktok|instagram|twitter|meme|viral|trending)\b",
+]
+
+# -------------------------------------------------------------------
+# Temas académicos válidos — si coincide, siempre se permite
+# (tiene prioridad sobre NON_ACADEMIC_PATTERNS)
+# -------------------------------------------------------------------
+
+ACADEMIC_TOPIC_PATTERNS = [
+    r"\b(matemática|cálculo|álgebra|estadística|probabilidad)\b",
+    r"\b(física|química|biología|anatomía|genética)\b",
+    r"\b(historia|geografía|filosofía|sociología|psicología)\b",
+    r"\b(programación|algoritmo|base de datos|redes|software)\b",
+    r"\b(economía|administración|contabilidad|finanzas)\b",
+    r"\b(literatura|gramática|redacción|lingüística)\b",
+    r"\b(investigación|tesis|ensayo|metodología|hipótesis)\b",
+]

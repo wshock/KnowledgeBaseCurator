@@ -19,6 +19,9 @@ langchain-chroma>=0.1.4
 # LangGraph
 langgraph==0.2.45
 
+# Web search fallback
+tavily-python==0.7.24
+
 # Vector DB — Actualizado para compatibilidad con el nuevo schema de Chroma Cloud                                   
 chromadb>=1.5.9
 
