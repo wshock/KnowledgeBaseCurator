@@ -740,7 +740,8 @@ def _build_curate_prompt(
         Si es CONVERSACIONAL:
         - Responde de forma directa y natural, como si fuera una conversación.
         - Da sugerencias concretas y puntuales sin estructuras rígidas.
-        - Usa un tono amigable y constructivo, Tambien puedes usar emojis.
+        - Usa un tono amigable y constructivo.
+        - Usa emojis para que la conversación sea más amena.
         - No hagas un reporte completo, solo responde lo que preguntó.
         
         Si es FORMAL:
