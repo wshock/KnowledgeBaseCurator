@@ -6,21 +6,22 @@ import { useAuthStore } from "@/src/store/auth.store";
 import { ChatInput } from "@/src/components/dashboard/chat/ChatInput";
 import { apiSendMessage, apiGetMessages } from "@/src/services/chat.service";
 import { useEffect, useRef, useCallback, useState } from "react";
-import { RiGraduationCapLine } from "react-icons/ri";
+import { RiGraduationCapLine, RiGlobalLine } from "react-icons/ri";
+import { HiOutlineDocumentText } from "react-icons/hi2";
 import { SelectedSources } from "@/src/components/dashboard/chat/SourcesModal";
 
 export default function ChatPage() {
   const params  = useParams();
   const localId = params.id as string;
 
-  const chat           = useDashboardStore((s) => s.chats.find((c) => c.id === localId));
-  const updateChat     = useDashboardStore((s) => s.updateChat);
+  const chat            = useDashboardStore((s) => s.chats.find((c) => c.id === localId));
+  const updateChat      = useDashboardStore((s) => s.updateChat);
   const addAgentMessage = useDashboardStore((s) => s.addAgentMessage);
   const setAgentTyping  = useDashboardStore((s) => s.setAgentTyping);
   const isAgentTyping   = useDashboardStore((s) => s.isAgentTyping);
   const token = useAuthStore((s) => s.token);
   const bottomRef = useRef<HTMLDivElement | null>(null);
-  const [activeSources, setActiveSources] = useState<SelectedSources>({ globalIds: [], localIds: [] });
+  const [activeSources, setActiveSources] = useState<SelectedSources>({ globalIds: [], localFilenames: [] });
 
   useEffect(() => {
     if (!chat || !token || chat.messages.length > 0) return;
@@ -42,16 +43,20 @@ export default function ChatPage() {
   const handleSendMessage = useCallback(async (message: string, sources?: SelectedSources) => {
     if (!message.trim() || !chat || isAgentTyping) return;
 
-    if (sources) {
-      setActiveSources(sources);
-    }
+    if (sources) setActiveSources(sources);
+
+    const finalSources = sources ?? activeSources;
 
     const userMessage = {
       id: Date.now().toString(),
       role: "user" as const,
       content: message,
       timestamp: new Date(),
+      sources: finalSources.localFilenames.length > 0 || finalSources.globalIds.length > 0
+        ? finalSources
+        : undefined,
     };
+
     updateChat(localId, { messages: [...chat.messages, userMessage], updatedAt: new Date() });
     setAgentTyping(true);
 
@@ -62,12 +67,11 @@ export default function ChatPage() {
         return;
       }
 
-      const finalSources = sources ?? activeSources;
       const pair = await apiSendMessage(
         currentToken,
         chat.backendId,
         message,
-        finalSources.localIds.length > 0 ? finalSources.localIds.map(String) : undefined,
+        finalSources.localFilenames.length > 0 ? finalSources.localFilenames : undefined,
         finalSources.globalIds.length > 0 ? finalSources.globalIds : undefined
       );
       addAgentMessage(localId, pair.assistant_message.content);
@@ -86,7 +90,6 @@ export default function ChatPage() {
 
   return (
     <div className="flex flex-col h-screen bg-[#f0f5ff]">
-
       <div className="flex-1 overflow-y-auto px-3 md:px-6 py-4 md:py-6">
         <div className="space-y-4 md:space-y-5 max-w-3xl mx-auto">
           {chat.messages.map((msg) => (
@@ -107,6 +110,24 @@ export default function ChatPage() {
                 }`}
               >
                 <p className="whitespace-pre-wrap">{msg.content}</p>
+
+                {msg.role === "user" && msg.sources &&
+                  (msg.sources.localFilenames.length > 0 || msg.sources.globalIds.length > 0) && (
+                  <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-white/20">
+                    {msg.sources.localFilenames.map((filename) => (
+                      <span key={filename} className="flex items-center gap-1 text-[10px] font-medium bg-white/15 text-white/80 px-2 py-0.5 rounded-full">
+                        <HiOutlineDocumentText className="h-3 w-3 shrink-0" />
+                        {filename}
+                      </span>
+                    ))}
+                    {msg.sources.globalIds.map((id) => (
+                      <span key={id} className="flex items-center gap-1 text-[10px] font-medium bg-white/15 text-white/80 px-2 py-0.5 rounded-full">
+                        <RiGlobalLine className="h-3 w-3 shrink-0" />
+                        Global
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           ))}

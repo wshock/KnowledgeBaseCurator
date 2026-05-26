@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/src/store/auth.store";
 import Sidebar from "@/src/components/dashboard/Sidebar";
 import { createContext } from "react";
+import { useLoadChats } from "@/src/hooks/useLoadChats"; 
 
 export const SidebarContext = createContext<{
   collapsed: boolean;
@@ -16,6 +17,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const token = useAuthStore((state) => state.token);
   const loadSession = useAuthStore((state) => state.loadSession);
+
+  useLoadChats();
 
   useEffect(() => {
     loadSession();
@@ -39,7 +42,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <SidebarContext.Provider value={{ collapsed, setCollapsed }}>
       <div className="flex min-h-screen overflow-hidden bg-[#f0f5ff]">
         <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
-
         <main
           className={`
             flex-1 min-h-screen overflow-x-hidden
