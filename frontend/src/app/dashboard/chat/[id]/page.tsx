@@ -9,76 +9,113 @@ import { useEffect, useRef, useCallback, useState } from "react";
 import { RiGraduationCapLine, RiGlobalLine } from "react-icons/ri";
 import { HiOutlineDocumentText } from "react-icons/hi2";
 import { SelectedSources } from "@/src/components/dashboard/chat/SourcesModal";
+import { MessageContent } from "@/src/app/dashboard/chat/[id]/MessageContent";
 
 export default function ChatPage() {
-  const params  = useParams();
+  const params = useParams();
   const localId = params.id as string;
 
-  const chat            = useDashboardStore((s) => s.chats.find((c) => c.id === localId));
-  const updateChat      = useDashboardStore((s) => s.updateChat);
+  const chat = useDashboardStore((s) => s.chats.find((c) => c.id === localId));
+  const updateChat = useDashboardStore((s) => s.updateChat);
   const addAgentMessage = useDashboardStore((s) => s.addAgentMessage);
-  const setAgentTyping  = useDashboardStore((s) => s.setAgentTyping);
-  const isAgentTyping   = useDashboardStore((s) => s.isAgentTyping);
+  const setAgentTyping = useDashboardStore((s) => s.setAgentTyping);
+  const isAgentTyping = useDashboardStore((s) => s.isAgentTyping);
   const token = useAuthStore((s) => s.token);
   const bottomRef = useRef<HTMLDivElement | null>(null);
-  const [activeSources, setActiveSources] = useState<SelectedSources>({ globalIds: [], localFilenames: [] });
+  const [activeSources, setActiveSources] = useState<SelectedSources>({
+    globalIds: [],
+    localFilenames: [],
+  });
 
   useEffect(() => {
     if (!chat || !token || chat.messages.length > 0) return;
-    apiGetMessages(token, chat.backendId).then((msgs) => {
-      const mapped = msgs.map((m) => ({
-        id: m.id.toString(),
-        role: m.sender as "user" | "assistant",
-        content: m.content,
-        timestamp: new Date(m.timestamp),
-      }));
-      updateChat(localId, { messages: mapped });
-    }).catch(console.error);
+    apiGetMessages(token, chat.backendId)
+      .then((msgs) => {
+        const mapped = msgs.map((m) => ({
+          id: m.id.toString(),
+          role: m.sender as "user" | "assistant",
+          content: m.content,
+          timestamp: new Date(m.timestamp),
+        }));
+        updateChat(localId, { messages: mapped });
+      })
+      .catch(console.error);
   }, [chat?.backendId, token]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chat?.messages, isAgentTyping]);
 
-  const handleSendMessage = useCallback(async (message: string, sources?: SelectedSources) => {
-    if (!message.trim() || !chat || isAgentTyping) return;
+  const handleSendMessage = useCallback(
+    async (message: string, sources?: SelectedSources) => {
+      if (!message.trim() || !chat || isAgentTyping) return;
 
-    if (sources) setActiveSources(sources);
+      if (sources) setActiveSources(sources);
 
-    const finalSources = sources ?? activeSources;
+      const finalSources = sources ?? activeSources;
 
-    const userMessage = {
-      id: Date.now().toString(),
-      role: "user" as const,
-      content: message,
-      timestamp: new Date(),
-      sources: finalSources.localFilenames.length > 0 || finalSources.globalIds.length > 0
-        ? finalSources
-        : undefined,
-    };
+      const userMessage = {
+        id: Date.now().toString(),
+        role: "user" as const,
+        content: message,
+        timestamp: new Date(),
+        sources:
+          finalSources.localFilenames.length > 0 ||
+          finalSources.globalIds.length > 0
+            ? finalSources
+            : undefined,
+      };
 
-    updateChat(localId, { messages: [...chat.messages, userMessage], updatedAt: new Date() });
-    setAgentTyping(true);
+      updateChat(localId, {
+        messages: [...chat.messages, userMessage],
+        updatedAt: new Date(),
+      });
+      setAgentTyping(true);
 
-    try {
-      const currentToken = token ?? (typeof window !== "undefined" ? localStorage.getItem("authToken") : "");
-      if (!currentToken) {
-        addAgentMessage(localId, "Error: No se encontró un token válido. Inicia sesión de nuevo.");
-        return;
+      try {
+        const currentToken =
+          token ??
+          (typeof window !== "undefined"
+            ? localStorage.getItem("authToken")
+            : "");
+        if (!currentToken) {
+          addAgentMessage(
+            localId,
+            "Error: No se encontró un token válido. Inicia sesión de nuevo.",
+          );
+          return;
+        }
+
+        const pair = await apiSendMessage(
+          currentToken,
+          chat.backendId,
+          message,
+          finalSources.localFilenames.length > 0
+            ? finalSources.localFilenames
+            : undefined,
+          finalSources.globalIds.length > 0
+            ? finalSources.globalIds
+            : undefined,
+        );
+        addAgentMessage(localId, pair.assistant_message.content);
+      } catch {
+        addAgentMessage(
+          localId,
+          "Lo siento, hubo un error al procesar tu mensaje. Intenta de nuevo.",
+        );
       }
-
-      const pair = await apiSendMessage(
-        currentToken,
-        chat.backendId,
-        message,
-        finalSources.localFilenames.length > 0 ? finalSources.localFilenames : undefined,
-        finalSources.globalIds.length > 0 ? finalSources.globalIds : undefined
-      );
-      addAgentMessage(localId, pair.assistant_message.content);
-    } catch {
-      addAgentMessage(localId, "Lo siento, hubo un error al procesar tu mensaje. Intenta de nuevo.");
-    }
-  }, [token, chat, isAgentTyping, updateChat, localId, setAgentTyping, addAgentMessage, activeSources]);
+    },
+    [
+      token,
+      chat,
+      isAgentTyping,
+      updateChat,
+      localId,
+      setAgentTyping,
+      addAgentMessage,
+      activeSources,
+    ],
+  );
 
   if (!chat) {
     return (
@@ -109,25 +146,40 @@ export default function ChatPage() {
                     : "bg-white border border-gray-100 text-gray-800 rounded-bl-sm shadow-sm"
                 }`}
               >
-                <p className="whitespace-pre-wrap">{msg.content}</p>
-
-                {msg.role === "user" && msg.sources &&
-                  (msg.sources.localFilenames.length > 0 || msg.sources.globalIds.length > 0) && (
-                  <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-white/20">
-                    {msg.sources.localFilenames.map((filename) => (
-                      <span key={filename} className="flex items-center gap-1 text-[10px] font-medium bg-white/15 text-white/80 px-2 py-0.5 rounded-full">
-                        <HiOutlineDocumentText className="h-3 w-3 shrink-0" />
-                        {filename}
-                      </span>
-                    ))}
-                    {msg.sources.globalIds.map((id) => (
-                      <span key={id} className="flex items-center gap-1 text-[10px] font-medium bg-white/15 text-white/80 px-2 py-0.5 rounded-full">
-                        <RiGlobalLine className="h-3 w-3 shrink-0" />
-                        Global
-                      </span>
-                    ))}
-                  </div>
+                {msg.role === "assistant" ? (
+                  <>
+                    {console.log("RAW:", msg.content)}
+                    <MessageContent content={msg.content} />
+                  </>
+                ) : (
+                  <p className="whitespace-pre-wrap">{msg.content}</p>
                 )}
+
+                {msg.role === "user" &&
+                  msg.sources &&
+                  (msg.sources.localFilenames.length > 0 ||
+                    msg.sources.globalIds.length > 0) && (
+                    <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-white/20">
+                      {msg.sources.localFilenames.map((filename) => (
+                        <span
+                          key={filename}
+                          className="flex items-center gap-1 text-[10px] font-medium bg-white/15 text-white/80 px-2 py-0.5 rounded-full"
+                        >
+                          <HiOutlineDocumentText className="h-3 w-3 shrink-0" />
+                          {filename}
+                        </span>
+                      ))}
+                      {msg.sources.globalIds.map((id) => (
+                        <span
+                          key={id}
+                          className="flex items-center gap-1 text-[10px] font-medium bg-white/15 text-white/80 px-2 py-0.5 rounded-full"
+                        >
+                          <RiGlobalLine className="h-3 w-3 shrink-0" />
+                          Global
+                        </span>
+                      ))}
+                    </div>
+                  )}
               </div>
             </div>
           ))}
@@ -155,7 +207,11 @@ export default function ChatPage() {
           <ChatInput
             onSend={handleSendMessage}
             disabled={isAgentTyping}
-            placeholder={isAgentTyping ? "SchoolAI está respondiendo..." : "Pregunta a SchoolAI..."}
+            placeholder={
+              isAgentTyping
+                ? "SchoolAI está respondiendo..."
+                : "Pregunta a SchoolAI..."
+            }
             chatId={chat.backendId}
             token={token ?? ""}
           />
