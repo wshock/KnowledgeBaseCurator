@@ -103,6 +103,7 @@ class RAGState(TypedDict):
     web_results: list[dict]          # Snippets de búsqueda web [{title, url, content}]
     used_web_fallback: bool          # Flag: se usó búsqueda web en esta consulta
     input_error: Optional[str]       # Error de guardrail detectado en retrieve (corta el flujo)
+    conversation_history: list[dict] # Historial reciente [{sender, content}] para contexto conversacional
 
 def _build_intent_classifier_prompt(question: str) -> str:
 
@@ -299,6 +300,7 @@ def retrieve(state: RAGState) -> dict:
             "web_results": [],
             "used_web_fallback": False,
             "input_error": input_error,
+            "conversation_history": state.get("conversation_history", []),
         }
 
     # Detectar intención REAL
@@ -318,6 +320,7 @@ def retrieve(state: RAGState) -> dict:
             "web_results": [],
             "used_web_fallback": False,
             "input_error": None,
+            "conversation_history": state.get("conversation_history", []),
         }
 
     # ---------------------------------------------------
@@ -359,6 +362,7 @@ def retrieve(state: RAGState) -> dict:
         "web_results": [],
         "used_web_fallback": False,
         "input_error": None,
+        "conversation_history": state.get("conversation_history", []),
     }
 
 # ---------------------------------------------------------------------------
@@ -446,7 +450,7 @@ def web_search(state: RAGState) -> dict:
               f"{len(filtered)} filtrados → {len(web_results)} seleccionados.")
  
         return {"web_results": web_results, "used_web_fallback": True}
- 
+
     except Exception as e:
         print(f"[web_search] Error durante la búsqueda: {e}")
         return {"web_results": [], "used_web_fallback": False}
@@ -572,10 +576,133 @@ def analyze(state: RAGState) -> dict:
             "suggestions": [],
             "analysis_error": error_msg,
         }
-        
+
 # ---------------------------------------------------------------------------
 # Nodo 4 — Generación de respuesta final
 # ---------------------------------------------------------------------------
+def _extract_main_topic(
+    conversation_history: list[dict],
+    base_context: list[str] = None,
+    user_context: list[str] = None
+) -> str:
+    """Detecta el tema principal de la conversación.
+
+    Prioridad:
+    1. Si hay contexto del retrieval (base_context o user_context), extrae el tema de ahí
+       (más preciso, ya que el retrieval ya identificó el tema académico)
+    2. Si no hay retrieval, busca en el historial conversacional
+    """
+    # Opción 1: Usar contexto del retrieval (PRIORITARIO)
+    retrieval_context = base_context or user_context
+    if retrieval_context:
+        # Tomar el primer chunk del retrieval
+        first_chunk = retrieval_context[0] if retrieval_context else ""
+        if first_chunk:
+            # Extraer primer párrafo o primera oración
+            lines = first_chunk.split("\n")
+            first_paragraph = next((line for line in lines if line.strip()), "")
+
+            if first_paragraph:
+                # Buscar la primera oración completa
+                sentences = first_paragraph.split(".")
+                first_sentence = sentences[0].strip()
+
+                # Extraer palabras clave (capitalizadas = sustantivos propios probables)
+                words = first_sentence.split()
+                capitalized = [w for w in words if w[0].isupper() and len(w) > 2]
+
+                if capitalized:
+                    # Tomar el primer sustantivo capitalizado (típicamente el tema)
+                    topic = capitalized[0]
+                    return topic
+
+                # Fallback: primeras 100 chars del párrafo
+                return first_paragraph[:100].rstrip(".")
+
+    # Opción 2: Extraer del historial conversacional si no hay retrieval
+    if not conversation_history:
+        return ""
+
+    # Buscar el primer mensaje del usuario que NO sea un saludo/pequeño
+    topic_keywords = [
+        "qué es", "define", "explica", "sobre", "hablar de",
+        "tema de", "ley de", "teoría de", "concepto de",
+        "analiza", "explica", "diferencia entre", "relación entre"
+    ]
+
+    # Buscar primer mensaje USER significativo (>20 chars)
+    first_significant_msg = None
+    for msg in conversation_history:
+        if msg["sender"] == "user" and len(msg["content"]) > 20:
+            first_significant_msg = msg["content"]
+            break
+
+    if not first_significant_msg:
+        return ""
+
+    # Si encontramos una palabra clave, extrae lo que viene después
+    text_lower = first_significant_msg.lower()
+    for keyword in topic_keywords:
+        if keyword in text_lower:
+            idx = text_lower.find(keyword) + len(keyword)
+            # Tomar los próximos 100 chars
+            topic_snippet = first_significant_msg[idx:idx+100].strip()
+            # Limpiar puntuación
+            topic_snippet = topic_snippet.rstrip("?.!,;:")
+            return topic_snippet[:80]
+
+    # Fallback: tomar primeros 80 chars del primer mensaje significativo
+    return first_significant_msg[:80].rstrip("?.!,;:")
+
+
+def _build_conversation_context_chat(conversation_history: list[dict]) -> str:
+    """Formatea el historial conversacional completo para mode_chat."""
+    if not conversation_history:
+        return ""
+
+    lines = ["CONTEXTO CONVERSACIONAL RECIENTE:", ""]
+    for msg in conversation_history:
+        sender_label = "Tú" if msg["sender"] == "user" else "Asistente"
+        lines.append(f"{sender_label}: {msg['content']}")
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+def _build_conversation_context_qa(
+    conversation_history: list[dict],
+    base_context: list[str] = None,
+    user_context: list[str] = None
+) -> str:
+    """Formatea el historial conversacional corto para mode_qa.
+
+    CRÍTICO: Las preguntas que parecen sueltas o sin contexto son justamente
+    las que necesitan este historial para ser entendidas correctamente.
+    Ejemplos:
+    - Usuario: "¿Por qué es importante?" → se refiere al tema anterior
+    - Usuario: "¿Eso también aplica aquí?" → "eso" necesita contexto
+    - Usuario: "¿Dame un ejemplo" → ejemplo de qué? → necesita contexto
+    """
+    if not conversation_history:
+        return ""
+
+    # Detectar tema principal usando retrieval context si disponible
+    main_topic = _extract_main_topic(conversation_history, base_context, user_context)
+    topic_reminder = f"\nTEMA PRINCIPAL DE LA CONVERSACIÓN: {main_topic}\n" if main_topic else ""
+
+    lines = [f"CONTEXTO RECIENTE:{topic_reminder}", ""]
+    for msg in conversation_history[-8:]:  # Últimos 4 intercambios (8 mensajes max)
+        sender_label = "Tú" if msg["sender"] == "user" else "Asistente"
+        content = msg['content']
+        # Truncar pero preservar suficiente para contexto
+        if len(content) > 250:
+            content = content[:250] + "..."
+        lines.append(f"{sender_label}: {content}")
+        lines.append("")
+
+    return "\n".join(lines)
+
+
 def _build_web_snippet_block(web_results: list[dict]) -> str:
     """Formatea los snippets web para el prompt (solo contenido, sin URLs)."""
     if not web_results:
@@ -608,6 +735,7 @@ def _build_qa_prompt(
     web_results: list[dict] = None,
     used_web_fallback: bool = False,
     rag_similarity_score: float = 0.0,
+    conversation_history: list[dict] = None,
 ) -> str:
 
     base_text = (
@@ -621,6 +749,12 @@ def _build_qa_prompt(
         if user_context
         else "Sin documentos del usuario."
     )
+
+    conversation_section = ""
+    if conversation_history:
+        conv_context = _build_conversation_context_qa(conversation_history, base_context, user_context)
+        if conv_context:
+            conversation_section = f"\n{conv_context}\n"
 
     web_section = ""
     references_block = ""
@@ -653,6 +787,32 @@ Tu tarea es responder preguntas usando:
 1. Los documentos del usuario como fuente principal.
 2. Los libros base como referencia académica de apoyo.
 3. Información web (solo si está disponible en la sección correspondiente).
+4. El historial conversacional para entender referencias indirectas.
+
+⚠️ REGLA CRÍTICA SOBRE CONTEXTO CONVERSACIONAL:
+Las preguntas que parecen "sueltas" o sin mucho contexto son JUSTAMENTE las que más necesitan
+que uses el historial para ser entendidas correctamente.
+
+EJEMPLOS:
+- Usuario pregunta: "¿Por qué es importante?" → SIN mencionar tema previo
+  RESPUESTA CORRECTA: Usa el historial para saber qué tema se está discutiendo
+                     (ej: ley de ohm, photosíntesis, etc.) y explica por qué ESO es importante.
+  RESPUESTA INCORRECTA: Hablar genéricamente sobre "importancia de la investigación"
+
+- Usuario pregunta: "¿Eso también aplica aquí?" → "eso" es ambiguo
+  RESPUESTA CORRECTA: Usa historial para saber a qué "eso" se refiere exactamente.
+
+- Usuario pregunta: "Dame un ejemplo" → muy vago
+  RESPUESTA CORRECTA: Del contexto anterior, sabe qué concepto necesita ejemplo.
+
+Reglas de precedencia IMPORTANTÍSIMAS:
+- Los LIBROS BASE son la fuente de verdad para información académica.
+- El historial conversacional SOLO ayuda a entender a qué se refiere el usuario.
+- NO reemplaces búsquedas en los documentos con información del historial.
+- Si el usuario pregunta algo que requiere conocimiento de los libros, prioriza siempre eso.
+- MANTÉN COHERENCIA DE TEMA: Si llevas 5 mensajes hablando de "ley de ohm"
+  y el usuario hace una pregunta breve, asume que sigue siendo sobre "ley de ohm"
+  a menos que cambie explícitamente de tema.
 
 Reglas de formato OBLIGATORIAS:
 - Empieza siempre con mayúscula.
@@ -662,6 +822,7 @@ Reglas de formato OBLIGATORIAS:
 - Organiza las ideas con saltos de línea y numeración simple (1. 2. 3.) sin negrillas.
 - NO menciones URLs ni fuentes dentro de los párrafos. Las fuentes van solo al final.
 {provenance_rule}
+
 Reglas de contenido:
 - Responde de forma natural y útil.
 - Prioriza la información del documento del usuario cuando la pregunta sea sobre su archivo.
@@ -672,7 +833,7 @@ Reglas de contenido:
   y puedes mencionar diferencias con los libros base.
 - NO generes reportes de curaduría ni listas de inconsistencias a menos que el usuario lo solicite.
 - No inventes información.
-
+{conversation_section}
 === LIBROS BASE ===
 {base_text}
 
@@ -815,9 +976,15 @@ def generate(state: RAGState) -> dict:
         # ---------------------------------------------------
         if state["mode"] == MODE_CHAT:
 
+            conversation_section = ""
+            if state.get("conversation_history"):
+                conv_context = _build_conversation_context_chat(state["conversation_history"])
+                if conv_context:
+                    conversation_section = f"\n{conv_context}\n"
+
             prompt = f"""
 Eres un asistente conversacional amigable.
-
+{conversation_section}
 Responde naturalmente al usuario.
 
 Mensaje:
@@ -851,6 +1018,7 @@ Mensaje:
                 web_results=web_results,
                 used_web_fallback=used_web_fallback,
                 rag_similarity_score=state.get("rag_similarity_score", 0.0),
+                conversation_history=state.get("conversation_history"),
             )
 
         llm = ChatGroq(
