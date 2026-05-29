@@ -52,6 +52,9 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
+    # Grading
+    GRADING_CONFIDENCE_THRESHOLD: float = 0.7
+
     class Config:
         # En local se leen valores desde .env; en Docker tambien pueden
         # inyectarse por variables de entorno del contenedor.
