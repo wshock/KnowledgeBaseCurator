@@ -37,9 +37,6 @@ export default function ConfiguracionPage() {
                   <p className="text-sm font-semibold text-gray-800">{user?.name ?? "Usuario"}</p>
                   <p className="text-xs text-gray-400">{user?.email ?? "—"}</p>
                 </div>
-                <button className="ml-auto text-xs font-medium text-blue-600 hover:text-blue-800 border border-blue-200 hover:border-blue-400 px-3 py-1.5 rounded-lg transition-colors">
-                  Editar perfil
-                </button>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
