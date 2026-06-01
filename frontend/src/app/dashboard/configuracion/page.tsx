@@ -90,24 +90,6 @@ export default function ConfiguracionPage() {
             </section>
           )}
 
-          <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-50">
-              <h2 className="text-sm font-semibold text-[#1a2b4a] flex items-center gap-2">
-                <FiShield className="h-4 w-4 text-blue-500" />
-                Seguridad
-              </h2>
-            </div>
-            <div className="divide-y divide-gray-50">
-              <button className="w-full flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors group">
-                <div className="text-left">
-                  <p className="text-sm font-medium text-gray-700">Cambiar contraseña</p>
-                  <p className="text-xs text-gray-400">Actualiza tu contraseña de acceso</p>
-                </div>
-                <FiChevronRight className="h-4 w-4 text-gray-400 group-hover:text-gray-600 transition-colors" />
-              </button>
-            </div>
-          </section>
-
         </div>
       </div>
     </div>
