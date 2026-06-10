@@ -73,11 +73,7 @@ export default function ChatPage() {
       setAgentTyping(true);
 
       try {
-        const currentToken =
-          token ??
-          (typeof window !== "undefined"
-            ? localStorage.getItem("authToken")
-            : "");
+        const currentToken = token ?? useAuthStore.getState().token;
         if (!currentToken) {
           addAgentMessage(
             localId,
@@ -202,7 +198,7 @@ export default function ChatPage() {
         </div>
       </div>
 
-      <div className="border-t border-gray-100 px-3 md:px-6 pt-3 pb-4 md:pb-8 bg-[#f0f5ff]">
+      <div className="border-t border-gray-100 px-3 md:px-6 pt-3 pb-24 md:pb-8 bg-[#f0f5ff]">
         <div className="max-w-3xl mx-auto">
           <ChatInput
             onSend={handleSendMessage}

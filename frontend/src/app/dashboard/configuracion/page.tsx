@@ -1,16 +1,19 @@
 "use client";
 
 import { useAuthStore } from "@/src/store/auth.store";
-import { FiUser, FiMail, FiSun, FiShield, FiChevronRight } from "react-icons/fi";
+import { useRouter } from "next/navigation";
+import { FiUser, FiMail, FiSun, FiShield, FiChevronRight, FiHelpCircle } from "react-icons/fi";
+import { resetTour } from "@/src/tour/useTour";
 
 // Cambia a true cuando se quiera hacer el modo oscuro
 const FEATURE_DARK_MODE = false;
 
 export default function ConfiguracionPage() {
   const user = useAuthStore((state) => state.user);
+  const router = useRouter();
 
   return (
-    <div className="min-h-screen bg-[#f0f5ff] p-8">
+    <div className="min-h-screen bg-[#f0f5ff] p-4 pt-16 md:p-8">
       <div className="max-w-4xl mx-auto">
 
         <div className="mb-8">
@@ -42,7 +45,7 @@ export default function ConfiguracionPage() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-medium text-gray-400 mb-1 block">Nombre completo</label>
                   <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5">
@@ -102,6 +105,28 @@ export default function ConfiguracionPage() {
                 <div className="text-left">
                   <p className="text-sm font-medium text-gray-700">Cambiar contraseña</p>
                   <p className="text-xs text-gray-400">Actualiza tu contraseña de acceso</p>
+                </div>
+                <FiChevronRight className="h-4 w-4 text-gray-400 group-hover:text-gray-600 transition-colors" />
+              </button>
+            </div>
+          </section>
+
+          <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-50">
+              <h2 className="text-sm font-semibold text-[#1a2b4a] flex items-center gap-2">
+                <FiHelpCircle className="h-4 w-4 text-blue-500" />
+                Ayuda
+              </h2>
+            </div>
+            <div className="divide-y divide-gray-50">
+              <button
+                type="button"
+                onClick={() => resetTour(router)}
+                className="w-full flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors group"
+              >
+                <div className="text-left">
+                  <p className="text-sm font-medium text-gray-700">Ver tutorial de nuevo</p>
+                  <p className="text-xs text-gray-400">Repetir el recorrido guiado por la aplicación</p>
                 </div>
                 <FiChevronRight className="h-4 w-4 text-gray-400 group-hover:text-gray-600 transition-colors" />
               </button>

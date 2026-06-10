@@ -3,7 +3,7 @@
 import { RiGraduationCapLine } from "react-icons/ri";
 import {
   FiClock, FiFile, FiSettings, FiHelpCircle, FiLogOut,
-  FiEdit2, FiTrash2, FiHome,
+  FiEdit2, FiTrash2, FiHome, FiMenu, FiX,
 } from "react-icons/fi";
 import { RiFileList2Line } from "react-icons/ri";
 import { AiOutlineFolderAdd } from "react-icons/ai";
@@ -47,6 +47,7 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
   const [openMenuId,   setOpenMenuId]   = useState<string | null>(null);
   const [editingId,    setEditingId]    = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
+  const [mobileOpen, setMobileOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const filteredChats = chats.filter((c) => c.messages.length > 0);
@@ -60,6 +61,11 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  // Cerrar drawer móvil al cambiar de ruta
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
 
   const handleRenameSubmit = async (chatId: string) => {
     if (!editingTitle.trim()) { setEditingId(null); return; }
@@ -82,7 +88,183 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
     <>
       <LogoutModal isOpen={showLogoutModal} onConfirm={handleLogoutConfirm} onCancel={() => setShowLogoutModal(false)} />
 
-      <div className={`hidden md:flex fixed left-0 top-0 h-screen bg-white border-r border-gray-200 flex-col transition-all duration-300 ease-in-out z-30 ${collapsed ? "w-16" : "w-52"}`}>
+      {/* === BOTÓN HAMBURGER (solo móvil) === */}
+      <button
+        type="button"
+        onClick={() => setMobileOpen(true)}
+        aria-label="Abrir menú"
+        className="md:hidden fixed top-3 left-3 z-40 w-11 h-11 flex items-center justify-center bg-white border border-gray-200 rounded-xl shadow-sm hover:bg-gray-50 active:scale-95 transition"
+      >
+        <FiMenu className="h-5 w-5 text-gray-700" />
+      </button>
+
+      {/* === OVERLAY MÓVIL === */}
+      {mobileOpen && (
+        <div
+          onClick={() => setMobileOpen(false)}
+          className="md:hidden fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-40"
+          aria-hidden="true"
+        />
+      )}
+
+      {/* === DRAWER MÓVIL === */}
+      <aside
+        data-tour="sidebar-mobile"
+        className={`md:hidden fixed top-0 left-0 h-screen w-72 max-w-[85vw] bg-white border-r border-gray-200 flex flex-col z-50 transform transition-transform duration-300 ease-in-out ${
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div className="px-3 py-5 flex items-center justify-between border-b border-gray-100">
+          <div className="flex items-center gap-2 min-w-0">
+            <RiGraduationCapLine className="h-8 w-8 text-white p-2 rounded bg-blue-950 shrink-0" />
+            <span className="text-base font-bold text-indigo-900 tracking-tight truncate">SchoolAI</span>
+          </div>
+          <button
+            onClick={() => setMobileOpen(false)}
+            aria-label="Cerrar menú"
+            className="text-gray-400 hover:text-gray-600 p-2 rounded-lg hover:bg-gray-100"
+          >
+            <FiX className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="px-3 py-4 border-b border-gray-100">
+          <button
+            onClick={() => router.push("/dashboard")}
+            className="w-full flex items-center gap-2 bg-blue-950 hover:bg-blue-900 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors"
+          >
+            <IoAddOutline className="h-4 w-4 shrink-0" /> Nuevo chat
+          </button>
+        </div>
+
+        <nav className="space-y-0.5 px-3 py-3 border-b border-gray-100">
+          {NAV_ITEMS.filter((i) => i.path !== "/dashboard").map((item) => {
+            const Icon = item.icon;
+            const isActive = pathname === item.path;
+            return (
+              <Link
+                key={item.path}
+                href={item.path}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  isActive ? "bg-indigo-50 text-indigo-900" : "text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+                }`}
+              >
+                <Icon className={item.iconSize} />
+                <span>{item.name}</span>
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Lista de chats recientes — sólo visible en el drawer móvil */}
+        <div className="flex-1 overflow-y-auto px-3 py-3 min-h-0" ref={menuRef}>
+          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest px-3 mb-2">
+            Chats recientes
+          </p>
+          <div className="space-y-0.5">
+            {filteredChats.length === 0 && (
+              <p className="text-xs text-gray-300 px-3 py-1">Sin chats aún</p>
+            )}
+            {filteredChats.map((chat) => {
+              const isActive = pathname === `/dashboard/chat/${chat.id}`;
+              const isEditing = editingId === chat.id;
+              const isMenuOpen = openMenuId === chat.id;
+              return (
+                <div
+                  key={chat.id}
+                  className={`group relative flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-colors ${
+                    isActive ? "bg-indigo-50 text-indigo-900" : "text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+                  }`}
+                >
+                  {isEditing ? (
+                    <input
+                      autoFocus
+                      value={editingTitle}
+                      onChange={(e) => setEditingTitle(e.target.value)}
+                      onBlur={() => handleRenameSubmit(chat.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleRenameSubmit(chat.id);
+                        if (e.key === "Escape") setEditingId(null);
+                      }}
+                      className="flex-1 bg-white border border-blue-300 rounded px-2 py-0.5 text-xs text-gray-800 outline-none focus:ring-1 focus:ring-blue-400"
+                    />
+                  ) : (
+                    <>
+                      <Link
+                        href={`/dashboard/chat/${chat.id}`}
+                        onClick={() => setMobileOpen(false)}
+                        className="flex items-center gap-2 flex-1 min-w-0"
+                      >
+                        <FiFile className="h-3.5 w-3.5 shrink-0 opacity-60" />
+                        <span className="truncate">{chat.title}</span>
+                      </Link>
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setOpenMenuId(isMenuOpen ? null : chat.id);
+                        }}
+                        className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 shrink-0 text-gray-400 hover:text-gray-600 transition-all p-0.5 rounded"
+                      >
+                        <SlOptions className="h-3 w-3" />
+                      </button>
+                      {isMenuOpen && (
+                        <div className="absolute right-2 top-8 z-20 bg-white border border-gray-100 rounded-xl shadow-lg py-1 w-36">
+                          <button
+                            onClick={() => {
+                              setEditingId(chat.id);
+                              setEditingTitle(chat.title);
+                              setOpenMenuId(null);
+                            }}
+                            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-600 hover:bg-gray-50"
+                          >
+                            <FiEdit2 className="h-3.5 w-3.5" /> Renombrar
+                          </button>
+                          <button
+                            onClick={() => handleDelete(chat.id)}
+                            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-500 hover:bg-red-50"
+                          >
+                            <FiTrash2 className="h-3.5 w-3.5" /> Eliminar
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="mt-auto border-t border-gray-100 pt-3 pb-3 px-3 space-y-0.5">
+          {NAV_BOTTOM.map((item) => {
+            const Icon = item.icon;
+            const isActive = pathname === item.path;
+            return (
+              <Link
+                key={item.path}
+                href={item.path}
+                onClick={() => setMobileOpen(false)}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  isActive ? "bg-indigo-50 text-indigo-900" : "text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+                }`}
+              >
+                <Icon className={item.iconSize} />
+                <span>{item.name}</span>
+              </Link>
+            );
+          })}
+          <button
+            onClick={() => setShowLogoutModal(true)}
+            className="w-full bg-blue-950 text-white hover:bg-blue-900 flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors"
+          >
+            <FiLogOut className="h-4 w-4 shrink-0" />
+            <span>Cerrar sesión</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* === SIDEBAR DESKTOP (intacto) === */}
+      <div data-tour="sidebar" className={`hidden md:flex fixed left-0 top-0 h-screen bg-white border-r border-gray-200 flex-col transition-all duration-300 ease-in-out z-30 ${collapsed ? "w-16" : "w-52"}`}>
 
         <div className={`px-3 py-5 flex items-center ${collapsed ? "justify-center" : "justify-between gap-2"}`}>
           {collapsed ? (
@@ -111,7 +293,7 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
               <IoAddOutline className="h-5 w-5" />
             </button>
           ) : (
-            <button onClick={() => router.push("/dashboard")} className="w-full flex items-center gap-2 bg-blue-950 hover:bg-blue-900 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors">
+            <button data-tour="new-chat" onClick={() => router.push("/dashboard")} className="w-full flex items-center gap-2 bg-blue-950 hover:bg-blue-900 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors">
               <IoAddOutline className="h-4 w-4 shrink-0" /> Nuevo chat
             </button>
           )}
@@ -120,12 +302,16 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
         <nav className={`space-y-0.5 ${collapsed ? "px-2" : "px-3"}`}>
           {NAV_ITEMS.filter((i) => i.path !== "/dashboard").map((item) => {
             const Icon = item.icon; const isActive = pathname === item.path;
+            const tourAttr =
+              item.path === "/dashboard/historial" ? "nav-history" :
+              item.path === "/dashboard/subir-archivo" ? "nav-upload" :
+              item.path === "/dashboard/examenes" ? "nav-exams" : undefined;
             return collapsed ? (
-              <Link key={item.path} href={item.path} title={item.name} className={`flex items-center justify-center w-10 h-10 mx-auto rounded-lg transition-colors ${isActive ? "bg-indigo-50 text-indigo-900" : "text-gray-500 hover:bg-gray-100 hover:text-gray-800"}`}>
+              <Link key={item.path} href={item.path} title={item.name} data-tour={tourAttr} className={`flex items-center justify-center w-10 h-10 mx-auto rounded-lg transition-colors ${isActive ? "bg-indigo-50 text-indigo-900" : "text-gray-500 hover:bg-gray-100 hover:text-gray-800"}`}>
                 <Icon className={item.iconSize} />
               </Link>
             ) : (
-              <Link key={item.path} href={item.path} className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${isActive ? "bg-indigo-50 text-indigo-900" : "text-gray-500 hover:bg-gray-100 hover:text-gray-800"}`}>
+              <Link key={item.path} href={item.path} data-tour={tourAttr} className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${isActive ? "bg-indigo-50 text-indigo-900" : "text-gray-500 hover:bg-gray-100 hover:text-gray-800"}`}>
                 <Icon className={item.iconSize} /><span>{item.name}</span>
               </Link>
             );
@@ -181,12 +367,13 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
         <div className={`mt-2 border-t border-gray-100 pt-3 pb-2 space-y-0.5 ${collapsed ? "px-2" : "px-3"}`}>
           {NAV_BOTTOM.map((item) => {
             const Icon = item.icon; const isActive = pathname === item.path;
+            const tourAttr = item.path === "/dashboard/configuracion" ? "nav-config" : undefined;
             return collapsed ? (
-              <Link key={item.path} href={item.path} title={item.name} className={`flex items-center justify-center w-10 h-10 mx-auto rounded-lg transition-colors ${isActive ? "bg-indigo-50 text-indigo-900" : "text-gray-500 hover:bg-gray-100 hover:text-gray-800"}`}>
+              <Link key={item.path} href={item.path} title={item.name} data-tour={tourAttr} className={`flex items-center justify-center w-10 h-10 mx-auto rounded-lg transition-colors ${isActive ? "bg-indigo-50 text-indigo-900" : "text-gray-500 hover:bg-gray-100 hover:text-gray-800"}`}>
                 <Icon className={item.iconSize} />
               </Link>
             ) : (
-              <Link key={item.path} href={item.path} className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${isActive ? "bg-indigo-50 text-indigo-900" : "text-gray-500 hover:bg-gray-100 hover:text-gray-800"}`}>
+              <Link key={item.path} href={item.path} data-tour={tourAttr} className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${isActive ? "bg-indigo-50 text-indigo-900" : "text-gray-500 hover:bg-gray-100 hover:text-gray-800"}`}>
                 <Icon className={item.iconSize} /><span>{item.name}</span>
               </Link>
             );
@@ -232,28 +419,45 @@ export default function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
 
       </div>
 
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-gray-200 flex items-center justify-around px-2 py-1">
-        {NAV_ITEMS.map((item) => {
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-gray-200 flex items-center justify-around px-1 py-1 pb-[env(safe-area-inset-bottom)]">
+        {NAV_ITEMS.slice(0, 2).map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.path;
           return (
             <Link key={item.path} href={item.path}
-              className={`flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl transition-colors ${isActive ? "text-blue-950" : "text-gray-400"}`}>
+              className={`flex flex-col items-center gap-0.5 px-2 py-2 rounded-xl transition-colors ${isActive ? "text-blue-950" : "text-gray-400"}`}>
               <Icon className="h-5 w-5" />
               <span className="text-[10px] font-medium truncate">{item.name}</span>
             </Link>
           );
         })}
-        <button onClick={() => router.push("/dashboard")} className="flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl text-white bg-blue-950">
-          <IoAddOutline className="h-5 w-5" />
-          <span className="text-[10px] font-medium">Nuevo</span>
-        </button>
+        <Link href="/dashboard/subir-archivo"
+          className={`flex flex-col items-center gap-0.5 px-2 py-2 rounded-xl transition-colors ${pathname === "/dashboard/subir-archivo" ? "text-blue-950" : "text-gray-400"}`}>
+          <AiOutlineFolderAdd className="h-5 w-5" />
+          <span className="text-[10px] font-medium truncate">Subir</span>
+        </Link>
+        <Link href="/dashboard/examenes"
+          className={`flex flex-col items-center gap-0.5 px-2 py-2 rounded-xl transition-colors ${pathname === "/dashboard/examenes" ? "text-blue-950" : "text-gray-400"}`}>
+          <RiFileList2Line className="h-5 w-5" />
+          <span className="text-[10px] font-medium truncate">Examenes</span>
+        </Link>
         <Link href="/dashboard/configuracion"
-          className={`flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl transition-colors ${pathname === "/dashboard/configuracion" ? "text-blue-950" : "text-gray-400"}`}>
+          className={`flex flex-col items-center gap-0.5 px-2 py-2 rounded-xl transition-colors ${pathname === "/dashboard/configuracion" ? "text-blue-950" : "text-gray-400"}`}>
           <FiSettings className="h-5 w-5" />
-          <span className="text-[10px] font-medium">Ajustes</span>
+          <span className="text-[10px] font-medium truncate">Ajustes</span>
         </Link>
       </nav>
+
+      {/* === FAB "Nuevo chat" (solo móvil) === */}
+      <button
+        type="button"
+        onClick={() => router.push("/dashboard")}
+        aria-label="Nuevo chat"
+        data-tour="new-chat-fab"
+        className="md:hidden fixed bottom-20 left-1/2 -translate-x-1/2 z-30 w-14 h-14 flex items-center justify-center rounded-full bg-blue-950 hover:bg-blue-900 text-white shadow-xl active:scale-95 transition"
+      >
+        <IoAddOutline className="h-6 w-6" />
+      </button>
     </>
   );
 }
