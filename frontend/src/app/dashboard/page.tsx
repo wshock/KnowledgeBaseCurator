@@ -23,10 +23,9 @@ import {
 } from "react-icons/ri";
 
 const SUGGESTIONS = [
-  "Crea un plan de estudio para matemáticas",
-  "Revisa mi taller de arquitectura",
-  "Explícame la técnica Pomodoro",
-  "Genera un resumen de mis apuntes",
+  "Crea un plan de estudio",
+  "Revisa el documento",
+  "Genera un resumen del documento",
 ];
 
 export default function Dashboard() {
