@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { FiUploadCloud, FiMessageSquare, FiBookOpen, FiChevronDown, FiChevronUp, FiArrowRight } from "react-icons/fi";
 import { RiSparklingLine, RiCompassLine, RiQuestionMark, RiQuestionnaireLine  } from "react-icons/ri";
 import { resetTour } from "@/src/tour/useTour";
+import { useAuthStore } from "@/src/store/auth.store";
 
 const FAQS = [
   { q: "¿Qué tipos de documentos puedo subir?", a: "Actualmente SchoolAI acepta archivos PDF con texto seleccionable. Los PDFs escaneados (imágenes) no son compatibles por el momento." },
@@ -40,6 +41,9 @@ function FAQ({ q, a }: { q: string; a: string }) {
 
 export default function CentroAyudaPage() {
   const router = useRouter();
+
+  const user = useAuthStore((state) => state.user);
+
   return (
     <div className="min-h-screen bg-[#f0f5ff] p-4 md:p-8">
       <div className="max-w-4xl mx-auto">
@@ -126,7 +130,7 @@ export default function CentroAyudaPage() {
           <p className="text-xs text-gray-400 mb-4">Repite el recorrido guiado para recordar las funciones principales.</p>
           <button
             type="button"
-            onClick={() => resetTour(router)}
+            onClick={() => user && resetTour(router, user.id)}
             className="inline-flex items-center gap-2 bg-blue-950 hover:bg-blue-900 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors"
           >
             <RiCompassLine className="h-6 w-6" />

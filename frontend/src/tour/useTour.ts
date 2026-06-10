@@ -5,14 +5,20 @@ import "driver.js/dist/driver.css";
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { buildTourSteps } from "./tourSteps";
 
-const TOUR_KEY = "schoolai_tour_completed";
+const getTourKey = (userId: number) =>
+  `schoolai_tour_completed_${userId}`;
 const TOUR_STEP_KEY = "schoolai_tour_pending_step";
 
 /** Devuelve true si el usuario ya completó el tour en este navegador. */
-export function hasTourBeenSeen(): boolean {
+export function hasTourBeenSeen(userId: number): boolean {
   if (typeof window === "undefined") return false;
+
   try {
-    return window.localStorage.getItem(TOUR_KEY) === "true";
+    return (
+      window.localStorage.getItem(
+        getTourKey(userId)
+      ) === "true"
+    );
   } catch {
     return false;
   }
@@ -43,7 +49,11 @@ export function consumePendingStep(): number | null {
 }
 
 /** Marca el tour como visto y lo inicia desde el primer paso. */
-export function startTour(router: AppRouterInstance, startStep?: number): void {
+export function startTour(
+  router: AppRouterInstance,
+  userId: number,
+  startStep?: number
+): void {
   if (typeof window === "undefined") return;
 
   const steps = buildTourSteps(router);
@@ -58,7 +68,10 @@ export function startTour(router: AppRouterInstance, startStep?: number): void {
     popoverClass: "schoolai-tour-popover",
     onDestroyStarted: () => {
       try {
-        window.localStorage.setItem(TOUR_KEY, "true");
+        window.localStorage.setItem(
+        getTourKey(userId),
+        "true"
+      );
       } catch {
         // ignore
       }
@@ -75,18 +88,22 @@ export function startTour(router: AppRouterInstance, startStep?: number): void {
 }
 
 /** Borra el flag de "ya visto" y vuelve a iniciar el tour desde el paso 0. */
-export function resetTour(router: AppRouterInstance): void {
+export function resetTour(
+  router: AppRouterInstance,
+  userId: number
+): void {
   if (typeof window === "undefined") return;
+
   try {
-    window.localStorage.removeItem(TOUR_KEY);
+    window.localStorage.removeItem(getTourKey(userId));
     window.localStorage.removeItem(TOUR_STEP_KEY);
   } catch {
     // ignore
   }
-  // Si no estamos en /dashboard, llevamos al usuario de vuelta al inicio
-  // para que el tour pueda arrancar desde el paso 0 sin perderse elementos.
+
   if (!window.location.pathname.startsWith("/dashboard")) {
     router.push("/dashboard");
   }
-  startTour(router, 0);
+
+  startTour(router, userId, 0);
 }

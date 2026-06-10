@@ -22,6 +22,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const pathname = usePathname();
   const token = useAuthStore((state) => state.token);
+  const user = useAuthStore((state) => state.user);
   const loadSession = useAuthStore((state) => state.loadSession);
 
   useLoadChats();
@@ -41,23 +42,29 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // (esto sucede justo después de un onNextClick que navega a otra ruta).
   // Si no hay paso pendiente y el tour nunca se ha visto, arranca desde 0.
   useEffect(() => {
-    if (!token) return;
+    if (!token || !user) return;
 
-    const pending = consumePendingStep();
-    if (pending !== null) {
-      // Reanudación: la página ya está renderizada pero los componentes
-      // dinámicos pueden tardar un instante. 1200ms da holgura.
-      const t = window.setTimeout(() => startTour(router, pending), 1200);
-      return () => window.clearTimeout(t);
-    }
+const pending = consumePendingStep();
 
-    if (hasTourBeenSeen()) return;
+if (pending !== null) {
+  const t = window.setTimeout(
+    () => startTour(router, user.id, pending),
+    1200
+  );
+
+  return () => window.clearTimeout(t);
+}
+
+if (hasTourBeenSeen(user.id)) return;
     // Primer inicio: solo disparamos en /dashboard (raíz) para no
     // competir con la reanudación de pasos posteriores.
     if (pathname !== "/dashboard") return;
-    const t = window.setTimeout(() => startTour(router, 0), 800);
+    const t = window.setTimeout(
+  () => startTour(router, user.id, 0),
+  800
+);
     return () => window.clearTimeout(t);
-  }, [token, pathname, router]);
+  }, [token, user, pathname, router]);
 
   if (!token) {
     return (
