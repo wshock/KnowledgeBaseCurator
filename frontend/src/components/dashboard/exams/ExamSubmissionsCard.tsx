@@ -37,13 +37,15 @@ export function ExamSubmissionsCard({
       <Divider text="Submissions" />
       <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 items-end">
         <div className="space-y-3">
-          <Input
-            label="Nombre del estudiante"
-            placeholder="Opcional"
-            value={studentName}
-            onChange={(e) => onStudentNameChange(e.target.value)}
-          />
-          <label className="h-10 flex items-center gap-3 border border-gray-200 bg-white rounded-xl px-4 text-xs text-gray-500 cursor-pointer hover:border-blue-200 hover:bg-blue-50/40 transition">
+          <div data-tour="exam-student-name">
+            <Input
+              label="Nombre del estudiante"
+              placeholder="Opcional"
+              value={studentName}
+              onChange={(e) => onStudentNameChange(e.target.value)}
+            />
+          </div>
+          <label data-tour="exam-submission-upload" className="h-10 flex items-center gap-3 border border-gray-200 bg-white rounded-xl px-4 text-xs text-gray-500 cursor-pointer hover:border-blue-200 hover:bg-blue-50/40 transition">
             <FiFileText className="h-4 w-4 text-gray-400" />
             <span className="truncate">
               {submissionFileName || "Elegir PDF del estudiante"}
@@ -57,7 +59,7 @@ export function ExamSubmissionsCard({
             />
           </label>
         </div>
-        <Button className="w-auto px-3 text-xs h-10" isLoading={loading} onClick={onUpload}>
+        <Button data-tour="exam-upload-submit" className="w-auto px-3 text-xs h-10" isLoading={loading} onClick={onUpload}>
           <span className="inline-flex items-center gap-2">
             <FiUploadCloud className="h-4 w-4" /> Subir
           </span>
@@ -65,7 +67,7 @@ export function ExamSubmissionsCard({
       </div>
 
       <div className="mt-5">
-        <div className="flex items-center justify-between mb-3">
+        <div data-tour="exam-submissions-list" className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-[#1a2b4a]">Listado</h3>
           {loading && <FiLoader className="h-4 w-4 animate-spin text-gray-400" />}
         </div>

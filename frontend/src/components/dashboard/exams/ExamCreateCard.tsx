@@ -21,7 +21,7 @@ export function ExamCreateCard({
   onCreate,
 }: ExamCreateCardProps) {
   return (
-    <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
+    <div data-tour="exam-create-card" className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
       <div className="flex items-center gap-2 mb-3">
         <FiPlus className="text-blue-950" />
         <h2 className="text-sm font-semibold text-[#1a2b4a]">Nuevo examen</h2>

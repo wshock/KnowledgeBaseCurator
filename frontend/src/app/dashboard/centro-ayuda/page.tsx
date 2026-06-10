@@ -1,8 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { FiUploadCloud, FiMessageSquare, FiBookOpen, FiChevronDown, FiChevronUp, FiArrowRight } from "react-icons/fi";
-import { RiSparklingLine } from "react-icons/ri";
+import { RiSparklingLine, RiCompassLine, RiQuestionMark, RiQuestionnaireLine  } from "react-icons/ri";
+import { resetTour } from "@/src/tour/useTour";
+import { useAuthStore } from "@/src/store/auth.store";
 
 const FAQS = [
   { q: "¿Qué tipos de documentos puedo subir?", a: "Actualmente SchoolAI acepta archivos PDF con texto seleccionable. Los PDFs escaneados (imágenes) no son compatibles por el momento." },
@@ -37,6 +40,10 @@ function FAQ({ q, a }: { q: string; a: string }) {
 }
 
 export default function CentroAyudaPage() {
+  const router = useRouter();
+
+  const user = useAuthStore((state) => state.user);
+
   return (
     <div className="min-h-screen bg-[#f0f5ff] p-4 md:p-8">
       <div className="max-w-4xl mx-auto">
@@ -44,7 +51,7 @@ export default function CentroAyudaPage() {
         <div className="bg-[#1a2b4a] rounded-2xl p-5 md:p-8 mb-6 md:mb-8 flex items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <RiSparklingLine className="h-4 w-4 md:h-5 md:w-5 text-blue-300" />
+              <RiQuestionnaireLine className="h-4 w-4 md:h-5 md:w-5 text-blue-300" />
               <span className="text-xs font-semibold text-blue-300 uppercase tracking-widest">Centro de ayuda</span>
             </div>
             <h1 className="text-xl md:text-2xl font-bold text-white mb-1 md:mb-2">¿Cómo podemos ayudarte?</h1>
@@ -53,7 +60,7 @@ export default function CentroAyudaPage() {
             </p>
           </div>
           <div className="hidden md:flex w-20 h-20 rounded-2xl bg-white/10 items-center justify-center shrink-0">
-            <RiSparklingLine className="h-10 w-10 text-white" />
+            <RiQuestionMark className="h-10 w-10 text-white" />
           </div>
         </div>
 
@@ -116,6 +123,19 @@ export default function CentroAyudaPage() {
             <h2 className="text-sm font-bold text-[#1a2b4a]">Preguntas frecuentes</h2>
           </div>
           {FAQS.map((faq, i) => <FAQ key={i} q={faq.q} a={faq.a} />)}
+        </div>
+
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm mt-5 p-4 md:p-6 text-center">
+          <h2 className="text-sm font-bold text-[#1a2b4a] mb-1">¿Primera vez en SchoolAI?</h2>
+          <p className="text-xs text-gray-400 mb-4">Repite el recorrido guiado para recordar las funciones principales.</p>
+          <button
+            type="button"
+            onClick={() => user && resetTour(router, user.id)}
+            className="inline-flex items-center gap-2 bg-blue-950 hover:bg-blue-900 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors"
+          >
+            <RiCompassLine className="h-6 w-6" />
+            Ver tutorial de nuevo
+          </button>
         </div>
 
       </div>

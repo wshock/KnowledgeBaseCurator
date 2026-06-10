@@ -1,16 +1,19 @@
 "use client";
 
 import { useAuthStore } from "@/src/store/auth.store";
-import { FiUser, FiMail, FiSun, FiShield, FiChevronRight } from "react-icons/fi";
+import { useRouter } from "next/navigation";
+import { FiUser, FiMail, FiSun, FiShield, FiChevronRight, FiHelpCircle } from "react-icons/fi";
+import { resetTour } from "@/src/tour/useTour";
 
 // Cambia a true cuando se quiera hacer el modo oscuro
 const FEATURE_DARK_MODE = false;
 
 export default function ConfiguracionPage() {
   const user = useAuthStore((state) => state.user);
+  const router = useRouter();
 
   return (
-    <div className="min-h-screen bg-[#f0f5ff] p-8">
+    <div className="min-h-screen bg-[#f0f5ff] p-4 pt-16 md:p-8">
       <div className="max-w-4xl mx-auto">
 
         <div className="mb-8">
@@ -39,7 +42,7 @@ export default function ConfiguracionPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-medium text-gray-400 mb-1 block">Nombre completo</label>
                   <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5">

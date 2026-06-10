@@ -61,6 +61,14 @@ export const useAuthStore = create<AuthState>()(
 
       logout: () => {
         set({ token: "", user: null, error: null });
+        // Limpiar stores persistidos para no filtrar datos al siguiente usuario
+        if (typeof window !== "undefined") {
+          try {
+            window.localStorage.removeItem("schoolai-dashboard");
+            window.localStorage.removeItem("schoolai-global-docs");
+          } catch {
+          }
+        }
       },
 
       loadSession: async () => {

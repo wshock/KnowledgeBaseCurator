@@ -1,11 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/src/store/auth.store";
 import Sidebar from "@/src/components/dashboard/Sidebar";
 import { createContext } from "react";
-import { useLoadChats } from "@/src/hooks/useLoadChats"; 
+import { useLoadChats } from "@/src/hooks/useLoadChats";
+import {
+  hasTourBeenSeen,
+  startTour,
+  consumePendingStep,
+} from "@/src/tour/useTour";
 
 export const SidebarContext = createContext<{
   collapsed: boolean;
@@ -15,7 +20,9 @@ export const SidebarContext = createContext<{
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const router = useRouter();
+  const pathname = usePathname();
   const token = useAuthStore((state) => state.token);
+  const user = useAuthStore((state) => state.user);
   const loadSession = useAuthStore((state) => state.loadSession);
 
   useLoadChats();
@@ -29,6 +36,35 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       router.push("/login");
     }
   }, [token, router]);
+
+  // Auto-inicio / reanudación del tour multi-página.
+  // Prioridad: si hay un paso pendiente, reanuda desde ese índice
+  // (esto sucede justo después de un onNextClick que navega a otra ruta).
+  // Si no hay paso pendiente y el tour nunca se ha visto, arranca desde 0.
+  useEffect(() => {
+    if (!token || !user) return;
+
+const pending = consumePendingStep();
+
+if (pending !== null) {
+  const t = window.setTimeout(
+    () => startTour(router, user.id, pending),
+    1200
+  );
+
+  return () => window.clearTimeout(t);
+}
+
+if (hasTourBeenSeen(user.id)) return;
+    // Primer inicio: solo disparamos en /dashboard (raíz) para no
+    // competir con la reanudación de pasos posteriores.
+    if (pathname !== "/dashboard") return;
+    const t = window.setTimeout(
+  () => startTour(router, user.id, 0),
+  800
+);
+    return () => window.clearTimeout(t);
+  }, [token, user, pathname, router]);
 
   if (!token) {
     return (
@@ -45,7 +81,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <main
           className={`
             flex-1 min-h-screen overflow-x-hidden
-            pb-20 md:pb-0
+            pb-24 md:pb-0
             transition-all duration-300 ease-in-out
             ${collapsed ? "md:ml-16" : "md:ml-52"}
           `}

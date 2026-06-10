@@ -274,7 +274,7 @@ export default function ExamenesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f0f5ff] p-8">
+    <div className="min-h-screen bg-[#f0f5ff] p-4 pt-16 md:p-8">
       <div className="max-w-6xl mx-auto space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-[#1a2b4a]">Examenes</h1>

@@ -52,7 +52,7 @@ export function ExamResultCard({
   onGrade,
 }: ExamResultCardProps) {
   return (
-    <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
+    <div data-tour="exam-results" className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
       <Divider text="Resultado" />
       {!activeSubmission ? (
         <p className="text-xs text-gray-400">Selecciona una submission para ver el resultado.</p>
@@ -152,7 +152,7 @@ export function ExamResultCard({
                 )}
               </div>
             ) : (
-              <div className="flex items-center justify-between">
+              <div data-tour="exam-grade-button" className="flex items-center justify-between">
                 <p className="text-xs text-gray-400">Aun no esta calificada.</p>
                 <Button isLoading={loadingGrading} className="w-auto px-4" onClick={onGrade}>
                   Calificar con IA

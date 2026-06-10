@@ -51,7 +51,7 @@ export function ExamKeyCard({
         <div className="space-y-2">
           
           <div className="flex flex-wrap items-center gap-2">
-            <label className="flex-1 min-w-[220px] h-10 flex items-center gap-3 border border-gray-200 bg-white rounded-xl px-4 text-xs text-gray-500 cursor-pointer hover:border-blue-200 hover:bg-blue-50/40 transition">
+            <label data-tour="exam-key-upload" className="flex-1 min-w-[220px] h-10 flex items-center gap-3 border border-gray-200 bg-white rounded-xl px-4 text-xs text-gray-500 cursor-pointer hover:border-blue-200 hover:bg-blue-50/40 transition">
               <FiFileText className="h-4 w-4 text-gray-400" />
               <span className="truncate">
                 {keyFileName || "Elegir PDF base"}

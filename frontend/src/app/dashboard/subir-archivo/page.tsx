@@ -56,11 +56,7 @@ export default function SubirArchivoPage() {
   );
 
   useEffect(() => {
-    const activeToken =
-      token ||
-      (typeof window !== "undefined"
-        ? localStorage.getItem("authToken")
-        : "");
+    const activeToken = token || useAuthStore.getState().token;
 
     if (!activeToken) return;
 
@@ -75,11 +71,7 @@ export default function SubirArchivoPage() {
   }, [token]);
 
   const reloadGlobalDocs = useCallback(async () => {
-    const activeToken =
-      token ||
-      (typeof window !== "undefined"
-        ? localStorage.getItem("authToken")
-        : "");
+    const activeToken = token || useAuthStore.getState().token;
 
     if (!activeToken) return;
 
@@ -103,11 +95,7 @@ export default function SubirArchivoPage() {
       ]);
 
       try {
-        const activeToken =
-          token ||
-          (typeof window !== "undefined"
-            ? localStorage.getItem("authToken")
-            : "");
+        const activeToken = token || useAuthStore.getState().token;
 
         if (!activeToken) {
           throw new Error("No hay sesión activa");
@@ -203,7 +191,7 @@ export default function SubirArchivoPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f0f5ff] p-8">
+    <div className="min-h-screen bg-[#f0f5ff] p-4 pt-16 md:p-8">
       <div className="max-w-4xl mx-auto">
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-[#1a2b4a]">
@@ -216,14 +204,15 @@ export default function SubirArchivoPage() {
           </p>
         </div>
 
-        <div className="flex gap-6">
-          <div className="flex-1 space-y-5">
+        <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
+          <div className="flex-1 space-y-5 order-2 lg:order-1">
             <div
+              data-tour="upload-dropzone"
               onDrop={onDrop}
               onDragOver={onDragOver}
               onDragLeave={onDragLeave}
               onClick={() => inputRef.current?.click()}
-              className={`rounded-2xl border-2 border-dashed p-12 flex flex-col items-center justify-center text-center transition-colors cursor-pointer bg-white ${
+              className={`rounded-2xl border-2 border-dashed p-6 md:p-12 flex flex-col items-center justify-center text-center transition-colors cursor-pointer bg-white ${
                 isDragging
                   ? "border-blue-500 bg-blue-50"
                   : "border-gray-200 hover:border-blue-300 hover:bg-blue-50/40"
@@ -253,7 +242,7 @@ export default function SubirArchivoPage() {
               </p>
 
               <button
-                className="bg-[#1a2b4a] text-white text-sm font-semibold px-6 py-2.5 rounded-xl hover:bg-blue-900 transition-colors"
+                className="w-full sm:w-auto bg-[#1a2b4a] text-white text-sm font-semibold px-6 py-2.5 rounded-xl hover:bg-blue-900 transition-colors"
                 onClick={(e) => {
                   e.stopPropagation();
                   inputRef.current?.click();
@@ -426,8 +415,8 @@ export default function SubirArchivoPage() {
 
 
 
-          <div className="w-64 shrink-0 space-y-4">
-            <div className="bg-[#1a2b4a] rounded-2xl p-5 text-white">
+          <div className="w-full lg:w-64 shrink-0 space-y-4 order-1 lg:order-2">
+            <div data-tour="upload-formats" className="bg-[#1a2b4a] rounded-2xl p-5 text-white">
               <p className="text-xs font-semibold uppercase tracking-widest text-blue-300 mb-3">
                 Formatos aceptados
               </p>

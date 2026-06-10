@@ -23,10 +23,9 @@ import {
 } from "react-icons/ri";
 
 const SUGGESTIONS = [
-  "Crea un plan de estudio para matemáticas",
-  "Revisa mi taller de arquitectura",
-  "Explícame la técnica Pomodoro",
-  "Genera un resumen de mis apuntes",
+  "Crea un plan de estudio",
+  "Revisa el documento",
+  "Genera un resumen del documento",
 ];
 
 export default function Dashboard() {
@@ -96,7 +95,7 @@ export default function Dashboard() {
   const handleSendMessage = useCallback(async (message: string) => {
     if (!message.trim()) return;
     try {
-      const currentToken = token || (typeof window !== "undefined" ? localStorage.getItem("authToken") : "");
+      const currentToken = token || useAuthStore.getState().token;
       if (!currentToken) {
         console.warn("No hay token disponible para enviar el mensaje");
         return;
@@ -119,9 +118,9 @@ export default function Dashboard() {
 
   return (
       <div className="min-h-screen bg-[#f0f5ff] overflow-x-hidden">
-        <div className="flex items-center justify-end px-8 py-10" />
+        <div className="flex items-center justify-end px-4 md:px-8 py-6 md:py-10" />
 
-        <div className="flex justify-center px-6 pb-16">
+        <div className="flex justify-center px-4 md:px-6 pb-24 md:pb-16">
           <div className="w-full max-w-6xl">
             
             <div className="flex flex-col items-center text-center mb-12 pt-8">
@@ -137,6 +136,7 @@ export default function Dashboard() {
               </div>
 
               <h1
+                data-tour="greeting"
                 className="text-3xl font-bold text-[#1a2b4a] mb-2 tracking-tight"
                 suppressHydrationWarning
               >
@@ -150,10 +150,10 @@ export default function Dashboard() {
 
         {activeTab === "docs" && (
           <div className="mt-8 flex flex-col items-center">
-            <div className="w-full max-w-2xl mb-8">
+            <div data-tour="chat-input" className="w-full max-w-2xl mb-8">
               <ChatInput onSend={handleSendMessage} chatId={0} token={token ?? ""} />
             </div>
-            <div className="flex flex-wrap gap-2 justify-center max-w-2xl">
+            <div data-tour="suggestions" className="flex flex-wrap gap-2 justify-center max-w-2xl">
               {SUGGESTIONS.map((s) => (
                 <button
                   key={s}

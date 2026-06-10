@@ -1,16 +1,58 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useDashboardStore } from "@/src/store/dashboard.store";
+import { useAuthStore } from "@/src/store/auth.store";
+import { apiGetChats } from "@/src/services/chat.service";
 import { useRouter } from "next/navigation";
 import { FiSearch, FiMessageSquare } from "react-icons/fi";
 import { HiOutlineDocumentText } from "react-icons/hi2";
 
 export default function HistorialPage() {
+  const token = useAuthStore((state) => state.token);
   const chats = useDashboardStore((state) => state.chats);
+  const setChats = useDashboardStore((state) => state.setChats);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"todo" | "chats">("todo");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+
+  // Cargar SIEMPRE desde el backend al montar la página
+  useEffect(() => {
+    const activeToken = token || useAuthStore.getState().token;
+    if (!activeToken) return;
+
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+
+    apiGetChats(activeToken)
+      .then((backendChats) => {
+        if (cancelled) return;
+        const mapped = backendChats.map((c) => ({
+          id: c.id.toString(),
+          backendId: c.id,
+          title: c.title,
+          createdAt: new Date(c.created_at),
+          updatedAt: new Date(c.updated_at),
+          messages: [],
+        }));
+        setChats(mapped);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.error("Error cargando historial desde backend:", err);
+        setError(err instanceof Error ? err.message : "Error al cargar el historial");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token, setChats]);
 
   const filteredChats = chats
     .filter((chat) => chat.messages.length > 0)
@@ -30,7 +72,7 @@ export default function HistorialPage() {
   };
 
   return (
-    <div className="h-screen bg-[#f0f5ff] flex flex-col p-8 overflow-hidden">
+    <div className="h-screen bg-[#f0f5ff] flex flex-col p-4 pt-16 md:p-8 overflow-hidden">
       <div className="max-w-4xl mx-auto w-full flex flex-col flex-1 min-h-0">
 
         <div className="mb-6 shrink-0">
@@ -38,10 +80,10 @@ export default function HistorialPage() {
           <p className="text-sm text-gray-400 mt-1">Todos tus chats y conversaciones anteriores.</p>
         </div>
 
-        <div className="flex gap-6 flex-1 min-h-0">
-          <div className="flex-1 min-w-0 flex flex-col min-h-0">
+        <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 flex-1 min-h-0">
+          <div className="flex-1 min-w-0 flex flex-col min-h-0 order-2 lg:order-1">
 
-            <div className="flex items-center gap-3 mb-4 shrink-0">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-4 shrink-0">
               <div className="flex-1 relative">
                 <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <input
@@ -52,12 +94,12 @@ export default function HistorialPage() {
                   className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-transparent"
                 />
               </div>
-              <div className="flex bg-white border border-gray-200 rounded-xl overflow-hidden text-sm font-medium">
+              <div className="flex bg-white border border-gray-200 rounded-xl overflow-hidden text-sm font-medium shrink-0">
                 {(["todo", "chats"] as const).map((f) => (
                   <button
                     key={f}
                     onClick={() => setFilter(f)}
-                    className={`px-4 py-2.5 transition-colors capitalize ${
+                    className={`flex-1 sm:flex-initial px-4 py-2.5 transition-colors capitalize ${
                       filter === f
                         ? "bg-[#1a2b4a] text-white"
                         : "text-gray-500 hover:bg-gray-50"
@@ -69,7 +111,22 @@ export default function HistorialPage() {
               </div>
             </div>
 
-            {filteredChats.length === 0 ? (
+            {loading ? (
+              <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
+                <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-blue-500 border-r-transparent mb-3" />
+                <p className="text-sm text-gray-400">Cargando conversaciones desde el servidor…</p>
+              </div>
+            ) : error ? (
+              <div className="bg-red-50 border border-red-100 rounded-2xl p-6 text-center">
+                <p className="text-sm text-red-600">{error}</p>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="mt-3 text-xs font-semibold text-red-700 hover:text-red-900 underline"
+                >
+                  Reintentar
+                </button>
+              </div>
+            ) : filteredChats.length === 0 ? (
               <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
                 <FiMessageSquare className="h-8 w-8 text-gray-300 mx-auto mb-3" />
                 <p className="text-sm text-gray-400">
@@ -77,7 +134,7 @@ export default function HistorialPage() {
                 </p>
               </div>
             ) : (
-              <div className="space-y-3 overflow-y-auto flex-1 pr-1">
+              <div data-tour="history-list" className="space-y-3 overflow-y-auto flex-1 pr-1">
                 {filteredChats.map((chat) => {
                   const lastMessage = chat.messages[chat.messages.length - 1];
                   const hasFile = false;
@@ -129,7 +186,7 @@ export default function HistorialPage() {
             )}
           </div>
 
-          <div className="w-60 shrink-0 space-y-4">
+          <div className="w-full lg:w-60 shrink-0 space-y-4 order-1 lg:order-2">
             <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">
                 Resumen

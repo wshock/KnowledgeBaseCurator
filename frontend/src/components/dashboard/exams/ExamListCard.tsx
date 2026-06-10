@@ -18,7 +18,7 @@ export function ExamListCard({
   onSelect,
 }: ExamListCardProps) {
   return (
-    <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
+    <div data-tour="exam-list" className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-sm font-semibold text-[#1a2b4a]">Mis examenes</h2>
         {loading && <FiLoader className="h-4 w-4 animate-spin text-gray-400" />}
