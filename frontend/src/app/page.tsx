@@ -67,9 +67,6 @@ export default function Home() {
                 </span>
               </span>
             </span>
-            <span className="hidden rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700 sm:inline-flex">
-              Patrocinador oficial
-            </span>
           </a>
           <h1 className="text-4xl sm:text-5xl md:text-5xl font-extrabold text-blue-950 leading-[1.08] tracking-tight">
             Ayuda para el<br />
